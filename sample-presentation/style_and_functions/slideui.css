@@ -1,0 +1,54 @@
+/* SlideUI: framework CSS condiviso da tutte le slide */
+
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #f1f5f9; }
+body { position: relative; }
+
+/* La slide è una tela fissa 1280x720 (16:9), scalata per stare nella finestra */
+.slide-layout {
+  position: absolute; left: 50%; top: 50%;
+  width: 1280px; height: 720px;
+  transform: translate(-50%, -50%) scale(var(--slide-scale, 1));
+  transform-origin: center center;
+  overflow: hidden; box-sizing: border-box; padding: 48px;
+  display: flex; flex-direction: column; justify-content: center;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color: #1e293b; background: white;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+.slide-layout * { box-sizing: border-box; }
+
+/* Contatore slide: stesso look del modulo 3 (numero grande, totale piccolo e spento) */
+.slideui-counter {
+  position: absolute; right: 28px; bottom: 16px;
+  display: flex; align-items: baseline; gap: 7px;
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #11151b; line-height: 1.2; white-space: nowrap;
+  font-variant-numeric: tabular-nums; pointer-events: none;
+  -webkit-user-select: none; user-select: none; z-index: 10;
+}
+.slideui-counter .current-slide { font-size: 38px; font-weight: 650; }
+.slideui-counter .total-slides { font-size: 23px; font-weight: 400; color: #5b6472; }
+
+.title { font-size: 3.5rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem; line-height: 1.1; letter-spacing: -0.02em; }
+.subtitle { font-size: 2rem; font-weight: 500; color: #475569; margin: 0 0 2.5rem; }
+.text-xl { font-size: 1.875rem; line-height: 1.5; margin-bottom: 1rem; }
+.text-lg { font-size: 1.5rem; line-height: 1.6; margin-bottom: 1rem; }
+
+.text-primary { color: #2563eb; }
+.text-accent { color: #059669; }
+.text-muted { color: #64748b; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin-bottom: 2rem; }
+.flex-col { display: flex; flex-direction: column; gap: 24px; }
+.flex-center { display: flex; align-items: center; justify-content: center; text-align: center; }
+
+.panel { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+.panel-primary { background: #eff6ff; border: 1px solid #bfdbfe; }
+.panel-accent { background: #ecfdf5; border: 1px solid #a7f3d0; }
+
+.math-block { font-size: 1.75rem; text-align: center; padding: 24px; background: white; border-radius: 12px; margin: 24px 0; border: 1px solid #f1f5f9; }
+.quote-block { border-left: 6px solid #6366f1; padding: 24px 32px; background: #eef2ff; border-radius: 0 16px 16px 0; font-size: 1.75rem; font-style: italic; color: #312e81; }
+
+/* Step (data-step="N") */
+.step-hidden { opacity: 0; visibility: hidden; transition: opacity 0.3s ease; }
+.step-visible { opacity: 1; visibility: visible; transition: opacity 0.3s ease; }

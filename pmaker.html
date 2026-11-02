@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slide Framework Editor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
+<style>
+  body, html { margin: 0; height: 100%; overflow: hidden; background: #f1f5f9; }
+  #slide-list::-webkit-scrollbar { width: 6px; }
+  #slide-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  #resizer { height: 3px; background: #e2e8f0; cursor: ns-resize; width: 100%; flex-shrink: 0; transition: background .2s; }
+  #resizer:hover, #resizer.active { background: #3b82f6; }
+  .ace_scrollbar-h { display: none !important; }
+  #preview-frame, #presentation-frame { border: 0; width: 100%; height: 100%; display: block; background: #f1f5f9; }
+</style>
+</head>
+<body class="flex h-screen">
+
+<!-- Sidebar -->
+<div class="w-72 bg-white border-r border-slate-200 flex flex-col h-full z-10 shadow-lg shrink-0">
+  <div class="p-4 border-b border-slate-200 bg-slate-50">
+    <div class="flex justify-between items-center">
+      <h2 class="font-bold text-slate-800">Slides</h2>
+      <button onclick="addSlide()" title="Nuova slide" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      </button>
+    </div>
+    <div id="folder-name" class="text-xs text-slate-500 truncate mt-1">Nessuna cartella aperta</div>
+    <div id="status" class="text-xs text-slate-400 mt-0.5 h-4"></div>
+  </div>
+
+  <ul id="slide-list" class="flex-1 overflow-y-auto p-2 space-y-1"></ul>
+
+  <div class="p-4 border-t border-slate-200 bg-slate-50 flex flex-col gap-2">
+    <button onclick="openFolder()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded shadow transition">Apri cartella</button>
+    <button onclick="startPresentation()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2 px-4 rounded shadow transition">Present</button>
+    <button onclick="copyPrompt()" id="prompt-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded shadow transition">Copy AI Prompt</button>
+    <div class="flex gap-2 mt-1">
+      <button onclick="document.getElementById('docs-modal').style.display='flex'" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded transition text-xs">Docs CSS</button>
+      <button onclick="reloadFromDisk()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded transition text-xs">Ricarica</button>
+      <button onclick="exportPresentation()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded transition text-xs">Export</button>
+    </div>
+  </div>
+</div>
+
+<!-- Editor + preview -->
+<div class="flex-1 flex flex-col h-full bg-slate-100 overflow-hidden relative" id="main-area">
+  <div id="editor-container" style="height: 50%; min-height: 100px;"><div id="code-editor" class="w-full h-full text-base"></div></div>
+  <div id="resizer"></div>
+  <div id="preview-container" style="flex: 1; min-height: 100px; background: #f1f5f9;"><iframe id="preview-frame"></iframe></div>
+
+  <div id="welcome" class="absolute inset-0 bg-slate-100 z-20 flex flex-col items-center justify-center gap-4 text-center p-8">
+    <h1 class="text-2xl font-bold text-slate-800">Slide Framework Editor</h1>
+    <p id="welcome-msg" class="text-slate-600 max-w-md">Scegli la cartella del deck: le sottocartelle (1, 2, 2.2, 3, ...) vengono lette da sole, in ordine, e il contatore delle slide è unico per tutto il deck. La scelta resta memorizzata: alla prossima apertura non serve ripeterla.</p>
+    <button onclick="openFolder()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded shadow">Apri cartella</button>
+    <button id="resume-btn" style="display:none" class="bg-white border border-blue-600 text-blue-700 hover:bg-blue-50 font-semibold py-2 px-6 rounded shadow">↻ Riprendi</button>
+  </div>
+</div>
+
+<!-- Presentation overlay -->
+<div id="presentation-overlay" style="position:fixed; inset:0; z-index:1000; display:none; background:#f1f5f9;">
+  <iframe id="presentation-frame"></iframe>
+</div>
+
+<!-- Docs modal -->
+<div id="docs-modal" style="display:none" class="fixed inset-0 bg-black/50 z-50 items-center justify-center p-8">
+  <div class="bg-white rounded-xl shadow-xl p-8 max-w-2xl w-full max-h-full overflow-y-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-bold">SlideUI CSS Framework</h2>
+      <button onclick="document.getElementById('docs-modal').style.display='none'" class="text-slate-400 hover:text-black">✖</button>
+    </div>
+    <div class="space-y-4 text-sm text-slate-700">
+      <p>Un file <code>NN-nome.html</code> per slide. Ogni capitolo (cartella) ha il suo <code>slideui.css</code> e <code>slideui.js</code>: l'anteprima, il Present e l'Export usano quelli della cartella della slide, non un framework unico per tutto il deck. Puoi modificarli a mano (poi premi Ricarica). Le slide possono stare in sottocartelle (es. <code>1/</code>, <code>2/</code>, <code>2/2/</code>): l'ordine è prima la cartella (ordine naturale) e poi il prefisso numerico del file, e il contatore delle slide resta unico per tutto il deck. Dentro ogni cartella la numerazione riparte da <code>01</code>; il numero globale lo calcola l'editor.</p>
+      <ul class="list-disc pl-5 space-y-2">
+        <li><code>class="slide-layout"</code>: il div principale della slide (è la tela fissa 1280×720, 16:9).</li>
+        <li><code>title</code> / <code>subtitle</code>: titoli.</li>
+        <li><code>text-xl</code> / <code>text-lg</code>: testo.</li>
+        <li><code>text-primary</code> / <code>text-accent</code> / <code>text-muted</code>: colori del testo.</li>
+        <li><code>grid-2</code>: colonne affiancate; <code>flex-col</code>, <code>flex-center</code>.</li>
+        <li><code>panel</code>, <code>panel-primary</code>, <code>panel-accent</code>: riquadri.</li>
+        <li><code>math-block</code>: formule centrate; <code>quote-block</code>: citazioni.</li>
+        <li><code>data-step="1"</code>: l'elemento appare al click (stesso numero = appaiono insieme).</li>
+      </ul>
+      <p>Ogni file si apre anche da solo nel browser: si scala a 16:9, frecce/spazio/click per gli step.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   RUNTIME DELLE SLIDE (viene scritto in slideui.js nella cartella)
+   ===================================================================== */
+function slideRuntime() {
+  var opts = window.__SLIDEUI || {};   // {showAll, atEnd} iniettato dall'editor / player
+  var items = [], values = [], cur = -1;
+
+  function fit() {
+    var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    document.documentElement.style.setProperty('--slide-scale', s);
+  }
+  function setStep(i) {
+    cur = i;
+    var limit = i >= 0 ? values[i] : -Infinity;
+    items.forEach(function (it) {
+      var show = it.n <= limit;
+      it.el.classList.toggle('step-visible', show);
+      it.el.classList.toggle('step-hidden', !show);
+    });
+  }
+  function notify(action) {
+    if (window.parent !== window) window.parent.postMessage({ slideui: action }, '*');
+  }
+  function handleKey(key) {
+    if (opts.showAll) return false;
+    if (key === 'ArrowRight' || key === ' ' || key === 'PageDown' || key === 'Enter') {
+      if (cur < values.length - 1) setStep(cur + 1); else notify('next');
+      return true;
+    }
+    if (key === 'ArrowLeft' || key === 'PageUp') {
+      if (cur >= 0) setStep(cur - 1); else notify('prev');
+      return true;
+    }
+    if (key === 'Escape') { notify('exit'); return true; }
+    return false;
+  }
+  function loadMath() {
+    if (window.MathJax || !/\\\(|\\\[|\$/.test(document.body.textContent)) return;
+    window.MathJax = { tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']]
+    } };
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js';
+    s.async = true;
+    document.head.appendChild(s);
+  }
+  function init() {
+    fit();
+    window.addEventListener('resize', fit);
+    items = Array.prototype.map.call(document.querySelectorAll('[data-step]'), function (el) {
+      return { el: el, n: parseFloat(el.getAttribute('data-step')) || 0 };
+    });
+    items.forEach(function (it) { if (values.indexOf(it.n) < 0) values.push(it.n); });
+    values.sort(function (a, b) { return a - b; });
+    if (!opts.showAll) setStep(opts.atEnd ? values.length - 1 : -1);
+    document.addEventListener('keydown', function (e) { if (handleKey(e.key)) e.preventDefault(); });
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('a, button, input, textarea')) handleKey('ArrowRight');
+    });
+    window.addEventListener('message', function (e) {
+      if (e.data && e.data.slideui === 'key') handleKey(e.data.key);
+    });
+    loadMath();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+}
+
+/* =====================================================================
+   CSS DEI COMPONENTI (viene scritto in slideui.css nella cartella)
+   ===================================================================== */
+const DEFAULT_CSS = `/* SlideUI: framework CSS condiviso da tutte le slide */
+
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #f1f5f9; color-scheme: light; }
+body { position: relative; }
+
+/* La slide è una tela fissa 1280x720 (16:9), scalata per stare nella finestra */
+.slide-layout {
+  position: absolute; left: 50%; top: 50%;
+  width: 1280px; height: 720px;
+  transform: translate(-50%, -50%) scale(var(--slide-scale, 1));
+  transform-origin: center center;
+  overflow: hidden; box-sizing: border-box; padding: 48px;
+  display: flex; flex-direction: column; justify-content: center;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color: #1e293b; background: white;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+.slide-layout * { box-sizing: border-box; }
+
+.title { font-size: 3.5rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem; line-height: 1.1; letter-spacing: -0.02em; }
+.subtitle { font-size: 2rem; font-weight: 500; color: #475569; margin: 0 0 2.5rem; }
+.text-xl { font-size: 1.875rem; line-height: 1.5; margin-bottom: 1rem; }
+.text-lg { font-size: 1.5rem; line-height: 1.6; margin-bottom: 1rem; }
+
+.text-primary { color: #2563eb; }
+.text-accent { color: #059669; }
+.text-muted { color: #64748b; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin-bottom: 2rem; }
+.flex-col { display: flex; flex-direction: column; gap: 24px; }
+.flex-center { display: flex; align-items: center; justify-content: center; text-align: center; }
+
+.panel { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+.panel-primary { background: #eff6ff; border: 1px solid #bfdbfe; }
+.panel-accent { background: #ecfdf5; border: 1px solid #a7f3d0; }
+
+.math-block { font-size: 1.75rem; text-align: center; padding: 24px; background: white; border-radius: 12px; margin: 24px 0; border: 1px solid #f1f5f9; }
+.quote-block { border-left: 6px solid #6366f1; padding: 24px 32px; background: #eef2ff; border-radius: 0 16px 16px 0; font-size: 1.75rem; font-style: italic; color: #312e81; }
+
+/* Step (data-step="N") */
+.step-hidden { opacity: 0; visibility: hidden; transition: opacity 0.3s ease; }
+.step-visible { opacity: 1; visibility: visible; transition: opacity 0.3s ease; }
+`;
+const DEFAULT_JS = '/* SlideUI: scala la slide a 16:9, gestisce gli step e le formule MathJax */\n(' + slideRuntime.toString() + ')();\n';
+
+function defaultSlideHTML(title, body) {
+  return `<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer><\/script>
+</head>
+<body>
+
+${body || `<div class="slide-layout">
+  <h1 class="title">${title}</h1>
+</div>`}
+
+</body>
+</html>
+`;
+}
+
+/* =====================================================================
+   PLAYER (usato per Present ed Export): un iframe per slide
+   ===================================================================== */
+function playerMain(slides, start) {
+  var f = document.getElementById('f'), i = -1, busy = false;
+  var FADE_OUT = 150;
+  function toggleFullscreen() {
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    var el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen();
+  }
+  function load(n, atEnd) {
+    /* index/total let the slide runtime draw its own counter inside the canvas. */
+    var flag = '<scr' + 'ipt>window.__SLIDEUI=' + JSON.stringify({ atEnd: !!atEnd, index: n, total: slides.length }) + '</scr' + 'ipt>';
+    var doc = slides[n];
+    f.srcdoc = /<head[^>]*>/i.test(doc) ? doc.replace(/<head[^>]*>/i, function (m) { return m + flag; }) : flag + doc;
+  }
+  /* One slide at a time: fade the current one out, swap the document, then let the
+     load event fade the next one in. `busy` keeps a key pressed during the fade
+     from stacking a second swap. */
+  function show(n, atEnd) {
+    if (n === i || busy) return;
+    if (i < 0) { i = n; load(n, atEnd); return; }
+    i = n;
+    busy = true;
+    f.style.opacity = '0';
+    setTimeout(function () { load(n, atEnd); }, FADE_OUT);
+  }
+  f.addEventListener('load', function () {
+    f.contentWindow.focus();
+    f.style.opacity = '1';
+    busy = false;
+  });
+  /* F toggles fullscreen. Inside the editor the player sits in an iframe, so the
+     request has to come from the top document: forward it upwards. */
+  function fullscreen() {
+    if (window.parent !== window) window.parent.postMessage({ slideui: 'fullscreen' }, '*');
+    else toggleFullscreen();
+  }
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      fullscreen();
+      return;
+    }
+    f.contentWindow.postMessage({ slideui: 'key', key: e.key }, '*');
+    e.preventDefault();
+  });
+  window.addEventListener('message', function (e) {
+    var a = e.data && e.data.slideui;
+    if (a === 'next' && i < slides.length - 1) show(i + 1, false);
+    else if (a === 'prev' && i > 0) show(i - 1, true);
+    else if (a === 'fullscreen') fullscreen();
+    else if (a === 'exit' && window.parent !== window) window.parent.postMessage({ slideui: 'exit' }, '*');
+  });
+  show(start, false);
+}
+
+function buildPlayerHTML(docs, start) {
+  const data = JSON.stringify(docs).replace(/<\/script/gi, '<\\/script').replace(new RegExp('<' + '!--', 'g'), '<\\!--');
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Presentation</title><style>' +
+    'html,body{margin:0;height:100%;overflow:hidden;background:#f1f5f9;color-scheme:light}' +
+    'iframe{border:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .22s ease}' +
+    '</style></head><body><iframe id="f"></iframe><scr' + 'ipt>(' +
+    playerMain.toString() + ')(' + data + ',' + start + ');</scr' + 'ipt></body></html>';
+}
+
+/* =====================================================================
+   STATO E FILE SU DISCO
+   ===================================================================== */
+let dirHandle = null;
+let slides = [];          // { path: '2/2', name: '01-intro.html', html: '...' } — path '' = radice
+let current = -1;
+let cssText = DEFAULT_CSS, jsText = DEFAULT_JS;   // base per i file nuovi
+/* Ogni cartella (capitolo) può avere il suo framework: path -> contenuto. */
+const assetText = { css: new Map(), js: new Map() };
+let ioQueue = Promise.resolve(), pending = 0, failed = false;
+let presMode = false, previewTimer = null;
+const dirCache = new Map();   // '1/2' -> FileSystemDirectoryHandle
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+const slugOf = name => name.replace(/\.html?$/i, '').replace(/^\d+[-_ ]*/, '') || 'slide';
+const prefixOf = name => (name.match(/^\d+/) || [''])[0];
+const prefixNum = name => parseInt(prefixOf(name) || '0', 10);
+const sanitize = s => s.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '');
+const escapeHTML = s => s.replace(/[&<>'"]/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[t]));
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+// percorso relativo di una slide ('1/02-modello.html') e etichetta della cartella ('1' o '2.2')
+const relOf = slide => (slide.path ? slide.path + '/' : '') + slide.name;
+const folderLabel = path => path.replace(/\//g, '.') || 'radice';
+
+function setStatus(msg, isError) {
+  const el = $('status');
+  el.textContent = msg;
+  el.className = 'text-xs mt-0.5 h-4 ' + (isError ? 'text-red-600' : 'text-slate-400');
+}
+
+/* ---- cartella ricordata fra una sessione e l'altra (IndexedDB) ------- */
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('slideui-editor', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function rememberFolder(handle) {
+  try {
+    const db = await idbOpen();
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(handle, 'deck');
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+  } catch (e) { console.warn('Cartella non memorizzata:', e); }
+}
+async function rememberedFolder() {
+  try {
+    const db = await idbOpen();
+    const tx = db.transaction('handles', 'readonly');
+    const req = tx.objectStore('handles').get('deck');
+    return await new Promise((resolve, reject) => {
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) { return null; }
+}
+
+/* ---- accesso alle cartelle: la radice scelta e tutte le sottocartelle -- */
+async function dirFor(path, create) {
+  if (!path) return dirHandle;
+  if (!create && dirCache.has(path)) return dirCache.get(path);
+  let dir = dirHandle;
+  for (const part of path.split('/').filter(Boolean)) {
+    dir = await dir.getDirectoryHandle(part, { create: !!create });
+  }
+  dirCache.set(path, dir);
+  return dir;
+}
+
+// Tutte le operazioni su disco passano da una coda: niente race tra salvataggi e rinomine
+function enqueue(task) {
+  pending++; failed = false; setStatus('Salvataggio…');
+  ioQueue = ioQueue.then(task)
+    .catch(err => { failed = true; console.error(err); setStatus('Errore: ' + err.message, true); })
+    .finally(() => { pending--; if (!pending && !failed) setStatus('Salvato ✓'); });
+  return ioQueue;
+}
+
+async function writeFile(path, name, text) {
+  const dir = await dirFor(path, true);
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable();
+  await w.write(text);
+  await w.close();
+}
+async function removeFile(path, name) {
+  try { const dir = await dirFor(path); await dir.removeEntry(name); }
+  catch (e) { if (e.name !== 'NotFoundError') throw e; }
+}
+async function readFile(handle) { return (await handle.getFile()).text(); }
+
+/* Visita ricorsivamente la radice e raccoglie le slide, tenendo da parte il primo
+   slideui.css / slideui.js utile. Ignora i file nascosti e le cartelle di servizio. */
+async function scanFolder(dir, path, out, assets, dirs) {
+  const files = [];
+  if (path) dirs.push(path);
+  for await (const [name, handle] of dir.entries()) {
+    if (name.startsWith('.')) continue;
+    if (handle.kind === 'file') {
+      if (/\.html?$/i.test(name)) files.push(name);
+      else if (name === 'slideui.css') assets.css.push({ path, handle });
+      else if (name === 'slideui.js') assets.js.push({ path, handle });
+    } else if (handle.kind === 'directory') {
+      await scanFolder(handle, path ? path + '/' + name : name, out, assets, dirs);
+    }
+  }
+  files.sort((a, b) => collator.compare(a, b));
+  for (const name of files) out.push({ path, name, html: await readFile(await dir.getFileHandle(name)) });
+}
+
+/* Ordine del deck: prima le cartelle (1, 2, 2.2, 3, ...), poi il numero del file. */
+function compareSlides(a, b) {
+  const pa = a.path ? a.path.split('/') : [];
+  const pb = b.path ? b.path.split('/') : [];
+  for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
+    const c = collator.compare(pa[i], pb[i]);
+    if (c) return c;
+  }
+  if (pa.length !== pb.length) return pa.length - pb.length;
+  return collator.compare(a.name, b.name);
+}
+
+function scheduleSave(slide) {
+  slide._dirty = true;
+  clearTimeout(slide._t);
+  slide._t = setTimeout(() => flushSlide(slide), 500);
+}
+function flushSlide(slide) {
+  clearTimeout(slide._t);
+  if (!slide._dirty) return;
+  slide._dirty = false;
+  enqueue(() => writeFile(slide.path, slide.name, slide.html));
+}
+function flushAll() { slides.forEach(flushSlide); }
+
+function renameTo(slide, newName, newPath) {
+  const oldName = slide.name, oldPath = slide.path;
+  slide.name = newName;
+  if (newPath !== undefined) slide.path = newPath;
+  const path = slide.path, name = slide.name;
+  enqueue(async () => {
+    await writeFile(path, name, slide.html);
+    if (oldPath !== path || oldName !== name) await removeFile(oldPath, oldName);
+  });
+}
+
+function uniqueSlug(base, path, ignore) {
+  const taken = new Set(slides.filter(s => s !== ignore && s.path === path).map(s => slugOf(s.name)));
+  let cand = base, k = 2;
+  while (taken.has(cand)) cand = base + '-' + k++;
+  return cand;
+}
+
+/* Rinumera i prefissi dentro una cartella: ogni capitolo riparte da 01, il
+   contatore globale del player è invece la posizione nella lista completa. */
+function renumberFolder(path) {
+  slides.filter(s => s.path === path).forEach((s, k) => {
+    const want = pad(k + 1) + '-' + slugOf(s.name) + '.html';
+    if (want !== s.name) renameTo(s, want);
+  });
+}
+
+async function openFolder() {
+  if (!window.showDirectoryPicker) {
+    $('welcome-msg').textContent = 'Questo browser non supporta l\'accesso alle cartelle: usa Chrome, Edge o un altro browser Chromium.';
+    return;
+  }
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+  } catch (e) {
+    if (e.name === 'AbortError') return;   // l'utente ha annullato
+    let msg = 'Impossibile aprire la cartella (' + e.name + '): ' + e.message;
+    if (window.self !== window.top) msg += '\n\nLa pagina è dentro un iframe (anteprima): scarica il file e aprilo direttamente nel browser.';
+    $('welcome').style.display = 'flex';
+    $('welcome-msg').textContent = msg;
+    alert(msg);
+    return;
+  }
+  dirCache.clear();
+  await rememberFolder(dirHandle);
+  try {
+    await loadFromDisk(0);
+  } catch (e) {
+    console.error(e);
+    alert('Errore nel caricamento della cartella (' + e.name + '): ' + e.message);
+  }
+}
+
+/* Prova a riaprire l'ultima cartella senza passare dal selettore. Se il browser
+   chiede ancora il permesso, mostra un pulsante: un clic e la cartella torna. */
+async function resumeLastFolder() {
+  const handle = await rememberedFolder();
+  if (!handle) return false;
+  let perm = 'prompt';
+  try { perm = await handle.queryPermission({ mode: 'readwrite' }); } catch (e) { return false; }
+  if (perm === 'granted') {
+    dirHandle = handle;
+    dirCache.clear();
+    try { await loadFromDisk(0); return true; } catch (e) { console.warn(e); dirHandle = null; return false; }
+  }
+  const btn = $('resume-btn');
+  if (!btn) return false;
+  btn.style.display = 'inline-flex';
+  btn.textContent = '↻ Riprendi ' + handle.name;
+  btn.onclick = async () => {
+    try {
+      if (await handle.requestPermission({ mode: 'readwrite' }) !== 'granted') return;
+      dirHandle = handle;
+      dirCache.clear();
+      await rememberFolder(handle);
+      await loadFromDisk(0);
+    } catch (e) { alert('Impossibile riaprire la cartella: ' + e.message); }
+  };
+  return false;
+}
+
+async function loadFromDisk(prefer) {
+  flushAll(); await ioQueue;
+  dirCache.clear();
+  const found = [];
+  const assets = { css: [], js: [] };
+  const chapters = [];
+  await scanFolder(dirHandle, '', found, assets, chapters);
+  found.sort(compareSlides);
+
+  // framework condivisi: uno per cartella, non uno solo per tutto il deck
+  assetText.css.clear(); assetText.js.clear();
+  for (const a of assets.css) assetText.css.set(a.path, await readFile(a.handle));
+  for (const a of assets.js) assetText.js.set(a.path, await readFile(a.handle));
+  cssText = assetText.css.get('') || DEFAULT_CSS;
+  jsText = assetText.js.get('') || DEFAULT_JS;
+  // Su un deck ancora senza framework i file di base vanno alla radice.
+  if (!assetText.css.size) { assetText.css.set('', cssText); await writeFile('', 'slideui.css', cssText); }
+  if (!assetText.js.size) { assetText.js.set('', jsText); await writeFile('', 'slideui.js', jsText); }
+
+  slides = found;
+  if (!slides.length) {
+    const name = '01-titolo.html', html = defaultSlideHTML('Titolo');
+    slides.push({ path: '', name, html });
+    await writeFile('', name, html);
+  }
+  // slug duplicati nella stessa cartella: li rendo unici per poter rinumerare senza sovrascrivere nulla
+  const seen = new Set();
+  slides.forEach(s => {
+    const key = s.path + '/' + slugOf(s.name);
+    if (seen.has(key)) {
+      const slug = uniqueSlug(slugOf(s.name), s.path, s);
+      renameTo(s, (prefixOf(s.name) ? prefixOf(s.name) + '-' : '') + slug + '.html');
+    } else seen.add(key);
+  });
+
+  const resumeBtn = $('resume-btn');
+  if (resumeBtn) resumeBtn.style.display = 'none';
+  editor.setReadOnly(false);
+  let target = 0;
+  if (typeof prefer === 'string') {
+    const k = slides.findIndex(s => relOf(s) === prefer);
+    target = k >= 0 ? k : 0;
+  } else if (typeof prefer === 'number' && prefer > 0) {
+    target = Math.min(prefer, slides.length - 1);
+  }
+  $('welcome').style.display = 'none';
+  $('folder-name').textContent = '📁 ' + dirHandle.name +
+    (chapters.length ? ' · ' + chapters.length + (chapters.length === 1 ? ' capitolo' : ' capitoli') : '');
+  $('folder-name').title = chapters.length ? chapters.join('  ·  ') : dirHandle.name;
+  loadSlide(target);
+  setStatus(slides.length + ' slide');
+}
+
+async function reloadFromDisk() {
+  if (!dirHandle) return;
+  const key = slides[current] ? relOf(slides[current]) : '';
+  await loadFromDisk(key);
+}
+
+/* =====================================================================
+   EDITOR (Ace) E ANTEPRIMA
+   ===================================================================== */
+const editor = ace.edit('code-editor');
+editor.setTheme('ace/theme/tomorrow');
+editor.session.setMode('ace/mode/html');
+editor.setOptions({ wrap: true, showPrintMargin: false, fontSize: '14px' });
+editor.setReadOnly(true);
+let isUpdatingEditor = false;
+
+editor.on('change', () => {
+  if (isUpdatingEditor || !slides[current]) return;
+  const s = slides[current];
+  s.html = editor.getValue();
+  scheduleSave(s);
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(updatePreview, 250);
+});
+
+/* Il framework di una slide è quello della sua cartella: se lì non c'è, si risale
+   ai genitori; se non esiste da nessuna parte, si usa quello di base. */
+function assetTextFor(kind, folder) {
+  const map = assetText[kind];
+  let path = folder || '';
+  while (true) {
+    if (map.has(path)) return map.get(path);
+    if (!path) break;
+    const cut = path.lastIndexOf('/');
+    path = cut < 0 ? '' : path.slice(0, cut);
+  }
+  return kind === 'css' ? DEFAULT_CSS : DEFAULT_JS;
+}
+
+// Sostituisce i riferimenti a slideui.css/js con il contenuto inline (serve per iframe srcdoc ed export)
+function inlineAssets(html, folder) {
+  return html
+    .replace(/<link[^>]*href=["']slideui\.css["'][^>]*>/i, () => '<style>' + assetTextFor('css', folder) + '</style>')
+    .replace(/<script[^>]*src=["']slideui\.js["'][^>]*>\s*<\/script>/i,
+             () => '<scr' + 'ipt>' + assetTextFor('js', folder).replace(/<\/script/gi, '<\\/script') + '</scr' + 'ipt>');
+}
+function buildPreviewDoc(html, folder) {
+  const flag = '<scr' + 'ipt>window.__SLIDEUI={showAll:true}</scr' + 'ipt>';
+  const doc = inlineAssets(html, folder);
+  return /<head[^>]*>/i.test(doc) ? doc.replace(/<head[^>]*>/i, m => m + flag) : flag + doc;
+}
+function updatePreview() {
+  const s = slides[current];
+  if (s) $('preview-frame').srcdoc = buildPreviewDoc(s.html, s.path);
+}
+
+function loadSlide(index) {
+  current = index;
+  isUpdatingEditor = true;
+  editor.setValue(slides[index].html, -1);
+  editor.session.getUndoManager().reset();
+  isUpdatingEditor = false;
+  renderSlideList();
+  updatePreview();
+}
+
+/* =====================================================================
+   LISTA SLIDE
+   ===================================================================== */
+const icons = {
+  up: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>',
+  down: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>',
+  del: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>'
+};
+const svg = p => `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">${p}</svg>`;
+
+function renderSlideList() {
+  const list = $('slide-list');
+  list.innerHTML = '';
+  slides.forEach((slide, index) => {
+    const prev = slides[index - 1], next = slides[index + 1];
+    const canUp = !!prev && prev.path === slide.path;
+    const canDown = !!next && next.path === slide.path;
+    const badge = slide.path
+      ? `<span class="text-[10px] font-mono text-blue-600 bg-blue-50 border border-blue-100 rounded px-1 mr-1 shrink-0" title="${escapeHTML(folderLabel(slide.path))}">${escapeHTML(folderLabel(slide.path))}</span>`
+      : '';
+    const li = document.createElement('li');
+    li.className = 'group flex items-center justify-between p-1.5 rounded transition ' +
+      (index === current ? 'bg-blue-100 border-l-4 border-blue-600' : 'hover:bg-slate-100');
+    li.innerHTML = `
+      <div class="flex items-center flex-1 min-w-0 mr-1 cursor-pointer" data-act="load">
+        <span class="text-xs font-mono text-slate-400 mr-1.5 w-7 text-right shrink-0">${index + 1}.</span>
+        ${badge}
+        <span class="text-sm font-medium text-slate-800 truncate cursor-text" data-act="name" title="${escapeHTML(relOf(slide))}">${escapeHTML(slugOf(slide.name))}</span>
+      </div>
+      <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        ${canUp ? `<button data-act="up" class="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded" title="Sposta su">${svg(icons.up)}</button>` : ''}
+        ${canDown ? `<button data-act="down" class="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded" title="Sposta giù">${svg(icons.down)}</button>` : ''}
+        <button data-act="del" class="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded" title="Elimina slide">${svg(icons.del)}</button>
+      </div>`;
+    li.addEventListener('click', e => {
+      const act = e.target.closest('[data-act]')?.dataset.act;
+      if (act === 'up') moveSlide(index, -1);
+      else if (act === 'down') moveSlide(index, 1);
+      else if (act === 'del') deleteSlide(index);
+      else if (act === 'load' || act === 'name') { if (index !== current) loadSlide(index); }
+    });
+    li.querySelector('[data-act="name"]').addEventListener('dblclick', e => editName(index, e.target));
+    list.appendChild(li);
+  });
+}
+
+function editName(index, span) {
+  const input = document.createElement('input');
+  input.value = slugOf(slides[index].name);
+  input.className = 'bg-white border border-blue-400 text-sm font-medium text-slate-800 outline-none px-1 py-0.5 rounded w-full';
+  span.replaceWith(input);
+  input.focus(); input.select();
+  let done = false;
+  const finish = save => {
+    if (done) return; done = true;
+    if (save) renameSlide(index, input.value);
+    renderSlideList();
+  };
+  input.addEventListener('click', e => e.stopPropagation());
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') finish(true);
+    if (e.key === 'Escape') finish(false);
+  });
+}
+
+function renameSlide(index, raw) {
+  const s = slides[index];
+  let slug = sanitize(raw);
+  if (!slug || slug === slugOf(s.name)) return;
+  slug = uniqueSlug(slug, s.path, s);
+  renameTo(s, (prefixOf(s.name) ? prefixOf(s.name) + '-' : '') + slug + '.html');
+}
+
+function addSlide() {
+  if (!dirHandle) return openFolder();
+  const path = slides[current] ? slides[current].path : '';
+  const slug = uniqueSlug('nuova-slide', path);
+  const local = slides.filter(s => s.path === path);
+  const name = pad(Math.max(0, ...local.map(s => prefixNum(s.name))) + 1) + '-' + slug + '.html';
+  const html = defaultSlideHTML('Nuova Slide');
+  let at = slides.length;
+  for (let i = slides.length - 1; i >= 0; i--) if (slides[i].path === path) { at = i + 1; break; }
+  slides.splice(at, 0, { path, name, html });
+  enqueue(() => writeFile(path, name, html));
+  if (path) ensureAssets(path);   // un capitolo nuovo deve poter aprire le sue slide anche da solo
+  loadSlide(at);
+}
+
+/* Copia slideui.css/js nel capitolo se mancano (ogni modulo ha il suo framework). */
+async function ensureAssets(path) {
+  const dir = await dirFor(path, true);
+  for (const [name, kind] of [['slideui.css', 'css'], ['slideui.js', 'js']]) {
+    let exists = true;
+    try { await dir.getFileHandle(name); } catch (e) { exists = false; }
+    if (!exists) {
+      const text = assetTextFor(kind, path);   // eredita dal genitore, o il default
+      assetText[kind].set(path, text);
+      enqueue(() => writeFile(path, name, text));
+    }
+  }
+}
+
+function moveSlide(index, dir) {
+  const target = index + dir;
+  if (target < 0 || target >= slides.length) return;
+  if (slides[target].path !== slides[index].path) return;   // niente salti di capitolo
+  const moved = slides.splice(index, 1)[0];
+  slides.splice(target, 0, moved);
+  // rinumero i prefissi solo dentro la cartella (01, 02, ...)
+  renumberFolder(moved.path);
+  loadSlide(target);
+}
+
+function deleteSlide(index) {
+  if (slides.length <= 1) return alert('Non puoi eliminare l\'unica slide rimasta.');
+  const s = slides[index];
+  if (!confirm(`Eliminare "${relOf(s)}" dal disco?`)) return;
+  clearTimeout(s._t); s._dirty = false;
+  slides.splice(index, 1);
+  enqueue(() => removeFile(s.path, s.name));
+  renumberFolder(s.path);
+  loadSlide(Math.min(index, slides.length - 1));
+}
+
+/* =====================================================================
+   PRESENTAZIONE, EXPORT, PROMPT
+   ===================================================================== */
+function startPresentation() {
+  if (!slides.length) return;
+  presMode = true;
+  const docs = slides.map(s => inlineAssets(s.html, s.path));
+  const frame = $('presentation-frame');
+  frame.onload = () => frame.contentWindow.focus();
+  frame.srcdoc = buildPlayerHTML(docs, Math.max(current, 0));
+  $('presentation-overlay').style.display = 'block';
+}
+function stopPresentation() {
+  presMode = false;
+  $('presentation-overlay').style.display = 'none';
+  $('presentation-frame').removeAttribute('srcdoc');
+  if (document.fullscreenElement) document.exitFullscreen?.();
+}
+/* F porta l'app a schermo intero (Esc esce). Il player la inoltra qui perché un
+   iframe non può attivare il fullscreen per la pagina che lo contiene. */
+function toggleFullscreen() {
+  if (document.fullscreenElement) { document.exitFullscreen?.(); return; }
+  document.documentElement.requestFullscreen?.().catch(() => {});
+}
+window.addEventListener('message', e => {
+  if (!e.data) return;
+  if (e.data.slideui === 'exit' && presMode) stopPresentation();
+  if (e.data.slideui === 'fullscreen') toggleFullscreen();
+});
+document.addEventListener('keydown', e => {
+  if (presMode && e.key === 'Escape') stopPresentation();
+  if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const t = e.target;
+    // mentre si scrive (codice, nome della slide) la F è solo una lettera
+    if (t && t.closest && t.closest('.ace_editor, input, textarea, select, [contenteditable="true"]')) return;
+    e.preventDefault();
+    toggleFullscreen();
+  }
+});
+
+function exportPresentation() {
+  if (!slides.length) return;
+  flushAll();
+  const html = buildPlayerHTML(slides.map(s => inlineAssets(s.html, s.path)), 0);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  a.download = 'presentation.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function copyPrompt() {
+  const prompt = `Act as an expert front-end developer. Create the HTML file for ONE presentation slide, to be dropped into a fixed-size slide framework. Write all visible text in the language of the request (Italian unless asked otherwise) and set the <html lang> attribute accordingly. If the request is vague, do not ask questions: make reasonable assumptions and build the slide.
+
+OUTPUT
+- Return EXCLUSIVELY one complete HTML code block built on the skeleton at the end: keep the <link> and <script> lines unchanged and put the slide inside <body>. The only extra thing allowed in <head> is ONE <style> block for animated arrows (see ANIMATIONS).
+- If the request needs several slides, return one separate HTML code block per slide, in order, and nothing else (no text before or after).
+- No images, no external resources, no custom JavaScript, no other <style> or <link>. Math is rendered by the framework (MathJax).
+
+1. CANVAS GEOMETRY (exact numbers: use them for every calculation)
+- The slide is ONE root <div class="slide-layout">: a fixed canvas of 1280x720px. The player scales the whole canvas to the window, so use ONLY px and rem units: never vw, vh, position: fixed/absolute or negative margins. Anything that exceeds the canvas is CLIPPED.
+- The player draws the slide counter (e.g. "3 / 12") in the BOTTOM-RIGHT corner of the canvas. The bottom 60px of the canvas is a RESERVED ZONE and must stay completely empty on every slide: no text, panels, borders, arrows, shadows or backgrounds there. Content must never sit under the slide number.
+- Always put on the root: style="padding: 32px 48px 60px; justify-content: flex-start;" (the 60px bottom padding creates the reserved zone). USABLE AREA = exactly 1184px wide x 628px tall.
+- Width of each block in a horizontal row (gap 16px; an arrow between two blocks takes about 64px = 32px glyph + 2 gaps):
+  1 block: 1184px | 2 blocks: 584px each | 3 blocks: 384px each | 2 blocks + 1 arrow: 560px each | 3 blocks + 2 arrows: 352px each.
+  Inner text width = block width - 2 x padding.
+
+2. ALLOWED CSS CLASSES (no others: Tailwind classes like 'font-semibold', 'text-center', 'mb-4' do NOT exist). Anything else goes in inline style="".
+- Typography: 'title', 'subtitle', 'text-xl', 'text-lg', 'text-primary', 'text-accent', 'text-muted'
+- Layout: 'grid-2', 'flex-col', 'flex-center'
+- Panels: 'panel', 'panel-primary', 'panel-accent'
+- Specials: 'math-block' (centered equations), 'quote-block' (quotes)
+The default class sizes are made for nearly empty slides, so ALWAYS override sizes with inline styles as described below. Set margin explicitly on every element that has default margins.
+
+3. MANDATORY LAYOUT STRUCTURE (it makes the content fill the whole height, so no empty band is left at the bottom)
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
+
+  <!-- Header: fixed height -->
+  <div style="margin-bottom: 20px;">
+    <div class="title" style="font-size: 2.75rem; margin: 0 0 4px 0;">Title</div>
+    <div class="subtitle" style="font-size: 1.5rem; margin: 0;">Subtitle</div>
+  </div>
+
+  <!-- Body: takes ALL the remaining height -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <!-- Row: flex: 1 stretches it, align-items: stretch makes the panels equally tall -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+      <div class="panel panel-primary" data-step="1" style="flex: 1; padding: 24px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.6rem; font-weight: 700; margin-bottom: 6px;">Heading</div>
+        <div style="font-size: 1.25rem; line-height: 1.4; margin-bottom: 10px;">Text</div>
+      </div>
+      <div data-step="2" style="display: flex; justify-content: center; align-self: center;"><span class="arrow arrow-right">→</span></div>
+      <div class="panel panel-accent" data-step="2" style="flex: 1; padding: 24px; margin: 0; display: flex; flex-direction: column; justify-content: center;">...</div>
+    </div>
+
+    <!-- more rows, same pattern -->
+  </div>
+</div>
+Header height: title + subtitle + 20px margin is about 100px, so BODY HEIGHT B = 628 - 100 = about 528px. Without subtitle the header is about 72px and B is about 556px. Rows share B equally (2 rows of 3 blocks: each row is about (528 - 16) / 2 = 256px tall).
+
+4. SIZE TIERS (never go below 1rem; always set line-height: 1.4 on panel text)
+- Tier S (dense): panel padding 20px, heading 1.4rem, text 1.05rem, math-block 1.2rem. Panel height = 40 + 34 + 23.5 x lines.
+- Tier M (default): panel padding 24px, heading 1.6rem, text 1.25rem, math-block 1.4rem. Panel height = 48 + 38 + 28 x lines.
+- Tier L (airy): panel padding 28px, heading 1.9rem, text 1.5rem, math-block 1.7rem. Panel height = 56 + 44 + 33.6 x lines.
+Add 10px per extra paragraph inside a panel, plus equation heights (section 6).
+Lines of text = ceil(characters / (inner width / (0.52 x font size in px))). Example: a 352px panel with 24px padding has 304px inner width; at 1.25rem (20px) that is about 29 characters per line.
+
+5. HEIGHT BUDGET (do this calculation before writing the code)
+- Start from tier M. For each row, its natural height is the height of its tallest block. Total = sum of row heights + 16px per gap (+ 36px for every arrow-down row between rows).
+- The total must be between 85% and 96% of B. The flex: 1 rows absorb the remaining space and spread it evenly inside the panels.
+- Total above 96% of B: go down one tier or cut words (never shrink below 1rem). Total below 85% of B: go up one tier, or add real content (an example, a formula, a takeaway line), or add a row.
+- Write the result as an HTML comment right after <body>, for example: <!-- BUDGET: tier M, B = 528px = row1 245 + gap 16 + row2 245 = 506px (96%) -->
+
+6. FILL AND BALANCE
+- Never leave a visibly empty band under the content: the body wrapper and the flex: 1 rows must always span the whole usable height. Panel text should fill at least 70% of the panel's inner height, otherwise raise the tier or add content.
+- Prefer 2 rows of 2-3 blocks with balanced counts (2+2, 3+3, 2+3), never a lonely orphan block in the last row unless it is full width. Never more than 3 blocks per row and never more than 2 rows of panels. One optional slim full-width strip (a quote-block or one math-block, at most 90px tall, flex: none) may be added under the rows if it fits the budget.
+- Slides with a single row of blocks are allowed only if the row is rich (tier L, lots of content) or if it is a title/welcome/closing slide: those may use a larger title (up to 4.5rem) and tier L, but content must still be spread over the whole usable height, not stuck at the top.
+- Visual balance: equal widths (flex: 1), symmetric rows, alternate panel-primary / panel-accent with the matching heading color (text-primary / text-accent), left-aligned text, similar text length across the blocks of a row.
+- Content: concrete and specific (names, numbers, short phrases), no filler, no lorem ipsum.
+- Math-block: padding 12px; margin: 0; one equation takes about 60px (simple) or 90px (with \\frac, \\sum, \\int, \\prod), plus 16px gap between stacked blocks.
+
+7. MATH
+- Inline math: \\( ... \\). Inside a math-block write every equation as \\(\\displaystyle ... \\), NEVER as \\[ ... \\] (display math adds about 40px of vertical margin). One equation per line, at most about 50 characters of LaTeX per 500px of block width: split longer equations into two blocks.
+
+8. ANIMATIONS
+- Use data-step="1", data-step="2", ... on elements (same number = appear together). Use consecutive integers starting from 1 (at most about 8 steps), in reading order. Never put data-step on the root or on the header. An arrow shares the step of the block it points to.
+- Hidden elements still occupy their space: the layout is computed as if everything were visible, so count every block in the budget.
+- For animated arrows, add this block in <head>:
+<style>
+  .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+  .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+  .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+  @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+  @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+</style>
+  and use <div data-step="1" style="display: flex; justify-content: center; align-self: center;"><span class="arrow arrow-right">→</span></div> (or arrow-down with ↓).
+
+9. CLEAN CODE
+- Indented, human readable, with a short comment above each section.
+
+10. FINAL CHECK (before answering)
+- Bottom 60px empty and nothing under the slide number? Budget between 85% and 96% of B? Only allowed classes? Text never below 1rem? Equations written as \\(\\displaystyle ... \\)? data-step numbers consecutive? The answer is ONLY the HTML code block(s)?
+
+SKELETON:
+${defaultSlideHTML('Title', '<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">\n  ...\n</div>')}`;
+  const el = document.createElement('textarea');
+  el.value = prompt;
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  document.body.removeChild(el);
+  const btn = $('prompt-btn'), old = btn.innerHTML;
+  btn.innerHTML = '✅ Copied!';
+  btn.classList.replace('bg-indigo-600', 'bg-green-600');
+  setTimeout(() => { btn.innerHTML = old; btn.classList.replace('bg-green-600', 'bg-indigo-600'); }, 2000);
+}
+
+/* =====================================================================
+   RESIZER, SCORCIATOIE, AVVISI
+   ===================================================================== */
+const resizer = $('resizer'), editorContainer = $('editor-container'), mainArea = $('main-area');
+let isResizing = false;
+resizer.addEventListener('mousedown', () => {
+  isResizing = true;
+  resizer.classList.add('active');
+  $('preview-frame').style.pointerEvents = 'none';   // l'iframe non deve rubare il mousemove
+  document.body.style.cursor = 'ns-resize';
+});
+document.addEventListener('mousemove', e => {
+  if (!isResizing) return;
+  const top = mainArea.getBoundingClientRect().top;
+  const h = Math.max(100, Math.min(e.clientY - top, mainArea.clientHeight - 103));
+  editorContainer.style.height = h + 'px';
+  editor.resize();
+});
+document.addEventListener('mouseup', () => {
+  if (!isResizing) return;
+  isResizing = false;
+  resizer.classList.remove('active');
+  $('preview-frame').style.pointerEvents = '';
+  document.body.style.cursor = 'default';
+});
+
+// Ctrl+S / Cmd+S: salva subito (altrimenti il salvataggio è automatico dopo 0,5 s)
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); flushAll(); }
+});
+window.addEventListener('beforeunload', e => {
+  if (pending > 0 || slides.some(s => s._dirty)) { e.preventDefault(); e.returnValue = ''; }
+});
+
+if (!window.showDirectoryPicker) {
+  $('welcome-msg').textContent = 'Questo browser non supporta l\'accesso alle cartelle: usa Chrome, Edge o un altro browser Chromium.';
+} else {
+  // riapre da sola l'ultima cartella, se il browser conserva il permesso
+  resumeLastFolder();
+}
+</script>
+</body>
+</html>
