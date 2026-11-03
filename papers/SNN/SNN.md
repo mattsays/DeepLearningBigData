@@ -136,47 +136,345 @@ During ordinary inference, **the weights remain fixed while the internal states 
 
 The number of time steps is an important choice: observing for longer can provide more evidence for a decision, but may increase latency and activity.
 
-### 2.2 Why Training Is Difficult
+### 2.2 What Training Actually Changes: A Running Example
 
-Spike generation can be written as a step function:
+During inference, the membrane potential changes as the network processes a sequence. During training, an additional process changes the **learned parameters**, usually the synaptic weights, so that future sequences produce more useful responses. Some models also learn thresholds or time constants, but we will keep those fixed here.
+
+Consider one neuron receiving **two consecutive input spikes**. We want it to emit an output spike at the second time step. This is a deliberately small supervised example, not a complete classification task.
+
+We choose:
+
+- initial state $u[0]=0$;
+- fixed threshold $\theta=1$;
+- fixed retention factor $\beta=0.8$;
+- one learned scalar weight $w$, reused at both time steps;
+- observed inputs $x[1]=x[2]=1$, indicating that an input spike arrives at each step.
+
+The potential before reset follows:
 
 $$
-s[t] = H(v[t]-\theta)
+v[t]=0.8u[t-1]+wx[t]
 $$
 
-Its derivative is zero almost everywhere and undefined at the threshold. Standard backpropagation therefore does not obtain a useful signal indicating how small changes in the weights would affect spike generation.
+Here $x[t]$ is the incoming spike, $v[t]$ is the potential before reset, and $u[t]$ is the state after reset. As in Section 1.3, the neuron emits $s[t]=1$ when $v[t]\geq1$ and then resets its state to zero.
 
-There is also a temporal dependency: a weight can influence the potential now and contribute to a spike several steps later. The error must be attributed to both the connections and earlier time steps. [3]
+Start with $w=0.5$:
 
-### 2.3 Method A: Direct Training with Surrogate Gradients
+| Time Step | Potential Before Reset | Output Spike | State After Reset |
+| --- | --- | --- | --- |
+| 1 | $v[1]=0.8\cdot0+0.5=0.5$ | $s[1]=0$ | $u[1]=0.5$ |
+| 2 | $v[2]=0.8\cdot0.5+0.5=0.9$ | $s[2]=0$ | $u[2]=0.9$ |
 
-A widely used approach keeps spikes discrete during the forward pass and uses a **substitute derivative**, or *surrogate gradient*, during the backward pass.
+The first input leaves a trace that persists into the second time step. However, the combined contribution does not reach the threshold. **Training should change the weight so that this input sequence produces the requested spike.**
 
-The procedure is:
+To quantify the mistake, let the desired output at the second step be $s^{\ast}[2]=1$. The actual prediction is $s[2]=0$. We choose a simple squared-error loss:
 
-1. Present a sequence to the network.
-2. Calculate states and spikes over time.
-3. Compare the output with the target using a loss function.
-4. Propagate the error signal across layers and time.
-5. Update the parameters using an optimizer.
+$$
+L=\frac{1}{2}\left(s[2]-s^{\ast}[2]\right)^2
+$$
 
-Temporal backpropagation is often performed using **Backpropagation Through Time (BPTT)**, as in recurrent networks. The surrogate gradient replaces the problematic derivative of the threshold function: it does not necessarily coincide with the exact gradient of the discrete network.
+The difference measures the prediction error; squaring makes either direction of error positive. The factor $1/2$ simplifies differentiation. For the current prediction:
 
-**The neuron continues to emit spikes during the forward pass; the approximation concerns the backward pass.** [3]
+$$
+L=\frac{1}{2}(0-1)^2=0.5
+$$
 
-### 2.4 Method B: ANN → SNN Conversion
+If the neuron emitted the desired spike, the loss would be zero. This example constrains only the output at the second step. A task requiring a complete spike pattern would also need to penalize incorrect spikes at other times.
 
-A conventional network is trained first, and a spiking version is then constructed to approximate its behavior.
+For larger tasks, the loss can instead compare spike counts, spike times, continuous readout values, or class probabilities. The objective determines which behavior the network learns. [2][3]
 
-One example is representing a high activation with a high spike rate. Conversion makes it possible to reuse established training procedures, but may require calibration and sufficiently long time windows. [4]
+### 2.3 Why the Spike Threshold Makes Training Difficult
 
-### 2.5 Method C: Local Rules and STDP
+Gradient descent needs a signal indicating how a small parameter change affects the loss. The difficulty is the hard threshold:
 
-**Spike-Timing-Dependent Plasticity (STDP)** modifies a connection based on the temporal relationship between presynaptic and postsynaptic spikes.
+$$
+s[t]=H(v[t]-\theta)
+$$
 
-In its classical form, a presynaptic spike occurring shortly before a postsynaptic spike can strengthen the connection; the reverse order can weaken it. The rule uses local information, but on its own does not guarantee that a complex supervised objective will be learned.
+Here $H$ is the step function: the output is zero below threshold and one at or above it.
 
-Variants modulated by rewards or other signals also exist. Therefore, not all SNNs are trained with STDP, and not all learn during inference. [4]
+In our example, while there is no reset at the first step:
+
+$$
+v[2]=0.8w+w=1.8w
+$$
+
+Compare nearby weight values:
+
+| Weight | Potential at Step 2 | Output at Step 2 |
+| --- | --- | --- |
+| $0.50$ | $0.900$ | No spike |
+| $0.51$ | $0.918$ | No spike |
+| $0.56$ | $1.008$ | Spike |
+
+The output stays unchanged over an interval and then jumps. The derivative of $H$ is zero away from the threshold and undefined at the threshold. Therefore, ordinary differentiation through this operation gives no useful local signal for moving toward the desired spike.
+
+This is also a **temporal credit assignment** problem: the first input affects the second potential through the neuron's retained state. Training must account for both current and earlier contributions. [3]
+
+### 2.4 Method A: Direct Training with Surrogate Gradients
+
+The central idea of a **surrogate gradient** is to keep the hard threshold during the forward pass but substitute its derivative during the backward pass. The forward computation still produces discrete spikes; the backward computation uses an update signal chosen to support optimization. It is generally not the exact gradient of the discrete model. [3]
+
+For our example, choose a simple substitute derivative that is one near the threshold and zero farther away:
+
+$$
+g(v)=
+\begin{cases}
+1 & \text{if } |v-\theta|<0.2 \\
+0 & \text{otherwise}
+\end{cases}
+$$
+
+The width and height here are illustrative design choices. Other surrogates use triangular shapes or derivatives of smooth functions.
+
+At the second step, $v[2]=0.9$ and $\theta=1$, so $g(v[2])=1$. Although no spike was emitted, the backward pass can now assign a nonzero sensitivity to a potential change.
+
+To compute the update, separate the chain rule into three factors.
+
+**First, how does the loss depend on the predicted spike value?** Treating the output as a numerical variable in the loss:
+
+$$
+\frac{\partial L}{\partial s[2]}=s[2]-1=-1
+$$
+
+The negative sign indicates that increasing the output toward the target would reduce the loss.
+
+**Second, how does the spike depend on the potential?** Replace the problematic derivative in the backward pass:
+
+$$
+\frac{\partial s[2]}{\partial v[2]}\approx g(v[2])=1
+$$
+
+**Third, how does the potential depend on the weight?** Since $v[2]=1.8w$ in this example:
+
+$$
+\frac{\partial v[2]}{\partial w}=1.8
+$$
+
+Multiplying the factors gives the surrogate gradient estimate:
+
+$$
+\frac{\partial L}{\partial w}\approx(-1)\cdot1\cdot1.8=-1.8
+$$
+
+At the first step the potential is far from threshold, so the chosen surrogate derivative is zero there. Together with the absence of an earlier reset, this makes the temporal calculation particularly simple. In general, the reset mechanism must also be handled consistently in the backward computation.
+
+Gradient descent subtracts the estimated gradient, scaled by a **learning rate** $\eta$. With $\eta=0.05$:
+
+$$
+w_{\mathrm{new}}=0.5-0.05(-1.8)=0.59
+$$
+
+The negative estimated gradient increases the weight. Run the sequence again from $u[0]=0$:
+
+$$
+v[1]=0.59
+$$
+
+$$
+v[2]=0.8\cdot0.59+0.59=1.062
+$$
+
+The first step remains below threshold, and the second now produces the desired spike. The loss for this example becomes zero.
+
+> The surrogate derivative provides an update direction even when the hard spike output has not yet changed. The forward pass remains a spiking computation.
+
+This successful update is a teaching example, not a guarantee that every surrogate step reduces the loss. Larger networks require repeated optimization over many examples, with appropriate surrogate scales and learning rates. [3]
+
+### 2.5 Why Backpropagation Through Time Is Also Needed
+
+The factor $1.8$ in our example contains two contributions:
+
+- $1$ from the effect of $w$ on the second input;
+- $0.8$ from the effect of the same weight on the first input, retained until the second step.
+
+Ignoring the first contribution in time would miss part of the weight's influence. **Backpropagation Through Time (BPTT)** extends this reasoning across all time steps and layers. Conceptually, it unfolds the state update into a sequence of connected computations and propagates error backward through them. The same physical weight is shared across time, so its update combines contributions from its uses throughout the sequence. [2]
+
+**BPTT and surrogate gradients solve different parts of the problem.** BPTT determines how error flows through the temporal dependencies. Surrogate derivatives supply a usable sensitivity at spike thresholds along those paths.
+
+The same neuron state creates temporal dependencies even in a network whose layer-to-layer connections are feedforward. Explicit recurrent connections can add further dependencies.
+
+Full BPTT typically requires storing intermediate states, so long sequences can be expensive in memory. Truncated BPTT cuts the backward history, potentially losing information about distant causes. Online methods such as **e-prop** instead combine eligibility traces with learning signals to approximate the required updates without a full backward traversal of the sequence. These methods introduce their own approximations and trade-offs. [2][3][13]
+
+### 2.6 Real-Time Recurrent Learning (RTRL)
+
+#### The Idea: Carry Sensitivities Forward with the State
+
+**Real-Time Recurrent Learning (RTRL)** is another way to calculate gradients through temporal dependencies. Alongside the neuron states, it maintains information about **how sensitive the current state is to each learned parameter**. When an error signal becomes available, these sensitivities connect it to the parameters without a backward traversal of the earlier states. [14]
+
+The question it answers is: if a weight had been slightly different throughout the sequence, how would the current state have changed? This sensitivity is different from the state itself. The membrane potential describes what the neuron is doing; its sensitivity describes how a parameter change would affect that behavior.
+
+In our running example, the second potential depends on the weight with factor $1.8$. BPTT recovers this dependence by tracing backward from the error. RTRL can build the same sensitivity as the two inputs arrive.
+
+#### The Same Two-Step Example, Calculated Forward
+
+Keep the parameters fixed during this comparison: $w=0.5$, $\beta=0.8$, and $\theta=1$. Both input spikes are one, and the initial state is independent of the weight.
+
+At step 1:
+
+$$
+v[1]=w=0.5
+$$
+
+Define the pre-reset sensitivity as $q[t]=\partial v[t]/\partial w$. Since the initial state is fixed:
+
+$$
+q[1]=1
+$$
+
+This means that increasing $w$ by a sufficiently small amount increases the first potential by that same amount. There is no spike or reset at step 1. Moreover, the chosen surrogate derivative is zero at $v[1]=0.5$, so the post-reset state sensitivity is also one in this example.
+
+At step 2, carry that sensitivity forward through the retained state and add the effect of the new input:
+
+$$
+q[2]=0.8\cdot1+1=1.8
+$$
+
+The $0.8$ term is the retained influence of the first input. The additional $1$ comes from the current use of the same weight.
+
+| Step | Potential Before Reset | Sensitivity Before Reset |
+| --- | --- | --- |
+| 1 | $v[1]=0.5$ | $q[1]=1$ |
+| 2 | $v[2]=0.9$ | $q[2]=1.8$ |
+
+When the second-step loss becomes available, its derivative with respect to the output spike is $-1$. The surrogate derivative at $v[2]=0.9$ is one. Multiply these by the sensitivity already maintained online:
+
+$$
+\frac{\partial L}{\partial w}\approx(-1)\cdot1\cdot1.8=-1.8
+$$
+
+The result matches our BPTT calculation. **The temporal influence was accumulated while moving forward, so no backward pass over the two-step history was needed.**
+
+The simple sensitivity update above applies to this particular example. For longer spiking sequences, sensitivities must also account for spikes, resets, and any other state variables.
+
+#### From One Neuron to a General Recurrent Network
+
+For a larger network, write its state update as:
+
+$$
+\mathbf{h}[t]=F(\mathbf{h}[t-1],\mathbf{x}[t];\mathbf{w})
+$$
+
+Here $\mathbf{h}[t]$ is a vector of $N$ state variables, $\mathbf{x}[t]$ is the observed input, and $\mathbf{w}$ is a vector of $M$ learned parameters. The function $F$ describes the state transition. In an SNN, the state may include membrane potentials, synaptic currents, and adaptation variables.
+
+The sensitivity becomes an $N\times M$ matrix:
+
+$$
+P_{ik}[t]=\frac{\partial h_i[t]}{\partial w_k}
+$$
+
+The index $i$ selects a state component, and $k$ selects a learned parameter. Each entry tracks a parameter's influence on one component of the current state.
+
+Applying the chain rule gives the RTRL recurrence:
+
+$$
+\boxed{\mathbf{P}[t]=\mathbf{J}[t]\mathbf{P}[t-1]+\mathbf{B}[t]}
+$$
+
+The two local derivative matrices are:
+
+$$
+\mathbf{J}[t]=\frac{\partial F}{\partial\mathbf{h}[t-1]}
+$$
+
+$$
+\mathbf{B}[t]=\left.\frac{\partial F}{\partial\mathbf{w}}\right|_{\mathbf{h}[t-1]\ \mathrm{fixed}}
+$$
+
+The $N\times N$ matrix $\mathbf{J}[t]$ describes how the previous state affects the next state. Multiplying it by $\mathbf{P}[t-1]$ transports the sensitivities already accumulated. The $N\times M$ matrix $\mathbf{B}[t]$ adds the parameters' direct effect at the current step, holding the previous state fixed. If the initial state does not depend on the parameters, $\mathbf{P}[0]=\mathbf{0}$. [15]
+
+For a current loss $\ell[t]$ that depends on these parameters only through the current state, the gradient is:
+
+$$
+\frac{\mathrm{d}\ell[t]}{\mathrm{d}\mathbf{w}}=
+\frac{\partial\ell[t]}{\partial\mathbf{h}[t]}\mathbf{P}[t]
+$$
+
+The loss derivative is a row vector, so the result has one entry per parameter. If the loss also depends directly on a parameter, its direct derivative must be added. Contributions from multiple time-step losses can be accumulated for an update.
+
+#### BPTT and RTRL: What Changes and What Stays the Same
+
+| Aspect | Full BPTT | RTRL |
+| --- | --- | --- |
+| Temporal calculation | Propagates error backward through stored or recomputed states | Propagates state-to-parameter sensitivities forward |
+| Main information retained | State history or checkpoints | Current state and sensitivity matrix |
+| Streaming use | Requires a backward computation over a chosen interval | Can form an update as each loss becomes available |
+| Long temporal context | Full history is costly; truncation discards paths | No explicit temporal truncation is required |
+| Main scaling difficulty | Length of the backward history | Number of state-parameter dependencies |
+
+For differentiable dynamics, fixed parameter values, the same trajectory, and the same objective, full BPTT and exact RTRL calculate the same gradient. They organize the chain rule differently. Updating weights after every step changes the training trajectory, so arbitrary online updates should not be equated with a single gradient update after a full sequence. [14][15]
+
+An online method also cannot use an error signal before it exists. If a target arrives only at the end, RTRL can maintain sensitivities while waiting, then combine them with that target's loss. It does not obtain future information early.
+
+#### What Changes for Spiking Neurons
+
+RTRL does not remove the hard-threshold differentiation problem. With discrete spikes, derivative calculations usually still need a surrogate or another suitable treatment. Thus, **RTRL and BPTT are alternatives for tracking temporal influence; surrogate derivatives address the spike nonlinearity**. [3]
+
+The reset belongs to the state transition too. For our zero-valued hard reset, let $p[t]$ denote the post-reset state sensitivity. The pre-reset sensitivity follows:
+
+$$
+q[t]=\beta p[t-1]+x[t]
+$$
+
+If the reset is differentiated through using the same surrogate $g$, then:
+
+$$
+p[t]\approx\left(1-s[t]-v[t]g(v[t])\right)q[t]
+$$
+
+This follows by differentiating $u[t]=(1-s[t])v[t]$: both the potential and the spike-dependent reset factor depend on the weight. In the first step of our example, $s[1]=0$ and $g(v[1])=0$, giving $p[1]=q[1]=1$, as used above. Implementations that detach the reset use a different differentiation convention; a comparison with BPTT must use the same convention.
+
+With surrogate derivatives, the propagated sensitivities and resulting update are surrogate quantities, rather than guaranteed exact derivatives of the hard-spiking system.
+
+#### Why Exact RTRL Can Be Expensive
+
+In a conventional densely recurrent network with $N$ state variables and approximately $N^2$ parameters, the sensitivity matrix contains approximately $N^3$ entries. A standard dense implementation requires approximately $O(N^4)$ computation per time step. These costs do not grow with the elapsed sequence length, but they grow steeply with network size. [15]
+
+The word *real-time* describes the forward, causal availability of the calculation; it does not guarantee fast execution. Particular recurrent structures can reduce the cost, while approximate methods compress or simplify the sensitivities. Work on element-wise recurrent architectures illustrates opportunities and limitations of making exact RTRL practical. [16]
+
+RTRL is not automatically biologically local: a general parameter can influence many state variables. Methods such as e-prop pursue more practical online updates with eligibility traces and learning signals, with their own approximations. Online learning therefore does not mean that every synapse can independently calculate the full exact gradient. [13][15]
+
+> BPTT traces an error backward to its earlier causes. RTRL continually carries forward how parameters influence the current state, ready to combine that information with an error when it becomes available.
+
+### 2.7 The Complete Direct-Training Cycle
+
+For a supervised task, the operational procedure is:
+
+1. **Select an input sequence and its target.** The target might be a class, a trajectory, or a desired response.
+2. **Initialize the neuron states.** Independent examples usually start with reset states; continuous streams need an explicit policy for carrying state between segments.
+3. **Run the forward pass over time.** Compute membrane states, spikes, resets, and readout values.
+4. **Calculate the loss.** Compare the relevant outputs with the target.
+5. **Run the backward pass.** Apply BPTT and surrogate derivatives through the spiking computation.
+6. **Update the parameters.** An optimizer changes the weights and any other parameters selected for learning.
+7. **Repeat across the training data.** Evaluate on separate data to check whether the learned behavior generalizes.
+
+After training, ordinary inference uses the learned parameters without the loss calculation or backward pass. The membrane states still evolve as inputs arrive. Training on a GPU and deploying the resulting model on a neuromorphic processor are separate stages; low-power inference does not imply equally low-cost training. [2][4][8]
+
+### 2.8 Method B: ANN → SNN Conversion
+
+Conversion starts by training a conventional ANN with its usual differentiable operations. A spiking model is then constructed to approximate that trained network's behavior.
+
+For an illustrative rate-based mapping, suppose an ANN activation of $0.6$ corresponds to a firing rate of $60$ spikes per second. Over $100$ ms, the corresponding expected count would be six spikes. A shorter observation window gives less opportunity to represent that rate accurately. This numerical scale is only an example; the appropriate mapping must be calibrated for the model.
+
+Conversion therefore involves more than copying weights. Activation scales, thresholds, reset behavior, and the observation window affect how closely the SNN approximates the original network. Depending on the architecture, additional adaptation or fine-tuning may be needed.
+
+This route reuses established ANN training procedures, while direct SNN training optimizes the spiking dynamics themselves. Conversion can offer good accuracy, but longer windows needed for approximation may increase inference latency and activity. [4][11]
+
+### 2.9 Method C: Local Rules and STDP
+
+**Spike-Timing-Dependent Plasticity (STDP)** updates a synapse using the relative timing of presynaptic and postsynaptic spikes.
+
+Suppose neuron A fires at $10$ ms and connected neuron B fires at $15$ ms. Define the timing difference as postsynaptic time minus presynaptic time:
+
+$$
+\Delta t=t_B-t_A=5\ \mathrm{ms}
+$$
+
+In the classical asymmetric STDP rule, this order can strengthen the A-to-B connection. If B fires before A, the rule can weaken it. The size of the update depends on the timing difference and the chosen plasticity rule. The classic experimental result concerns particular biological conditions; STDP is not a universal rule with the same shape at every synapse. [12]
+
+The important computational distinction is that a basic pair-based update uses **local spike information**, without requiring a global classification error to be propagated backward through every layer.
+
+However, temporal association alone does not specify the task. A connection can strengthen because A regularly precedes B even if this does not improve a desired classification. Reward-modulated or other three-factor rules add a further learning signal to guide plasticity toward an objective. [3][4]
 
 ## 3. Current Applications
 
@@ -277,3 +575,9 @@ Shared benchmarks and measurements of the complete system can clarify where SNNs
 8. **Davies et al. (2021): Advancing Neuromorphic Computing With Loihi: A Survey of Results and Outlook.** Proceedings of the IEEE. <https://doi.org/10.1109/JPROC.2021.3067593>
 9. **The NeuroBench Framework for Benchmarking Neuromorphic Computing Algorithms and Systems (2025).** Nature Communications. <https://www.nature.com/articles/s41467-025-56739-4>
 10. **Li et al. (2026): A Highly Energy-Efficient Multi-Core Neuromorphic Architecture for Training Deep Spiking Neural Networks.** Nature Communications. <https://pubmed.ncbi.nlm.nih.gov/41881988/>
+11. **Rueckauer et al. (2017): Conversion of Continuous-Valued Deep Networks to Efficient Event-Driven Networks for Image Classification.** ANN-to-SNN conversion, calibration, and inference trade-offs. <https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2017.00682/full>
+12. **Bi and Poo (1998): Synaptic Modifications in Cultured Hippocampal Neurons: Dependence on Spike Timing, Synaptic Strength, and Postsynaptic Cell Type.** Experimental basis for classical STDP. <https://pmc.ncbi.nlm.nih.gov/articles/PMC6793365/>
+13. **Bellec et al. (2020): A Solution to the Learning Dilemma for Recurrent Networks of Spiking Neurons.** E-prop, eligibility traces, and online learning. <https://www.nature.com/articles/s41467-020-17236-y>
+14. **Williams and Zipser (1989): A Learning Algorithm for Continually Running Fully Recurrent Neural Networks.** Neural Computation, 1(2), 270-280. Original RTRL formulation. <https://doi.org/10.1162/neco.1989.1.2.270>
+15. **Marschall, Cho, and Savin (2020): A Unified Framework of Online Learning Algorithms for Training Recurrent Neural Networks.** Journal of Machine Learning Research, 21(135), 1-34. RTRL sensitivities, computational complexity, and online approximations. <https://jmlr.org/papers/v21/19-562.html>
+16. **Irie, Gopalakrishnan, and Schmidhuber (2024): Exploring the Promise and Limits of Real-Time Recurrent Learning.** ICLR 2024; initial preprint 2023. Structured recurrence and practical RTRL trade-offs. <https://arxiv.org/abs/2305.19044>
