@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Limitation: Over-Smoothing & Depth Trade-off</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+
+    /* --- NODES & EDGES BASE --- */
+    .node-circle {
+      width: 38px; height: 38px; border-radius: 50%; flex: none;
+      position: relative; z-index: 2;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+    }
+    .edge-link {
+      width: 11px; height: 4px; background: #94a3b8; flex: none;
+      position: relative; overflow: hidden;
+    }
+
+    /* --- ANIMATION 1: Layer 0 Distinct Identity Pulse --- */
+    .distinct-1 { background: #ef4444; animation: distinct-pop 2.2s ease-in-out infinite 0.0s; }
+    .distinct-2 { background: #f59e0b; animation: distinct-pop 2.2s ease-in-out infinite 0.3s; }
+    .distinct-3 { background: #eab308; animation: distinct-pop 2.2s ease-in-out infinite 0.6s; }
+    .distinct-4 { background: #22c55e; animation: distinct-pop 2.2s ease-in-out infinite 0.9s; }
+    .distinct-5 { background: #3b82f6; animation: distinct-pop 2.2s ease-in-out infinite 1.2s; }
+    .distinct-6 { background: #8b5cf6; animation: distinct-pop 2.2s ease-in-out infinite 1.5s; }
+    @keyframes distinct-pop {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-3px) scale(1.08); }
+    }
+
+    /* --- ANIMATION 2: Layer 2 Neighbor Averaging & Blending --- */
+    .edge-mixing::after {
+      content: ""; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: #f59e0b;
+      animation: mix-flow 1.1s linear infinite;
+    }
+    @keyframes mix-flow {
+      0% { left: -100%; }
+      50% { left: 100%; }
+      100% { left: -100%; }
+    }
+    .blend-1 { animation: blend-c1 2.8s ease-in-out infinite; }
+    .blend-2 { animation: blend-c2 2.8s ease-in-out infinite; }
+    .blend-3 { animation: blend-c3 2.8s ease-in-out infinite; }
+    .blend-4 { animation: blend-c4 2.8s ease-in-out infinite; }
+    .blend-5 { animation: blend-c5 2.8s ease-in-out infinite; }
+    .blend-6 { animation: blend-c6 2.8s ease-in-out infinite; }
+    @keyframes blend-c1 { 0%, 100% { background: #ef4444; } 50% { background: #c98878; } }
+    @keyframes blend-c2 { 0%, 100% { background: #f59e0b; } 50% { background: #c89872; } }
+    @keyframes blend-c3 { 0%, 100% { background: #eab308; } 50% { background: #bfa575; } }
+    @keyframes blend-c4 { 0%, 100% { background: #22c55e; } 50% { background: #8fa98b; } }
+    @keyframes blend-c5 { 0%, 100% { background: #3b82f6; } 50% { background: #8398bf; } }
+    @keyframes blend-c6 { 0%, 100% { background: #8b5cf6; } 50% { background: #9888bf; } }
+
+    /* --- ANIMATION 3: Layer K Total Homogenization / Collapse --- */
+    .collapse-node-1 { animation: collapse-1 3s ease-in-out infinite; }
+    .collapse-node-2 { animation: collapse-2 3s ease-in-out infinite; }
+    .collapse-node-3 { animation: collapse-3 3s ease-in-out infinite; }
+    @keyframes collapse-1 {
+      0%, 15% { background: #c98878; transform: scale(1); }
+      55%, 85% { background: #9a8fb5; transform: scale(0.94); box-shadow: none; }
+      100% { background: #c98878; transform: scale(1); }
+    }
+    @keyframes collapse-2 {
+      0%, 15% { background: #8fa98b; transform: scale(1); }
+      55%, 85% { background: #9a8fb5; transform: scale(0.94); box-shadow: none; }
+      100% { background: #8fa98b; transform: scale(1); }
+    }
+    @keyframes collapse-3 {
+      0%, 15% { background: #8398bf; transform: scale(1); }
+      55%, 85% { background: #9a8fb5; transform: scale(0.94); box-shadow: none; }
+      100% { background: #8398bf; transform: scale(1); }
+    }
+
+    /* --- DIVERSITY METER BARS --- */
+    .meter-high { width: 100%; height: 10px; background: #22c55e; border-radius: 5px; }
+    .meter-med {
+      height: 10px; background: #f59e0b; border-radius: 5px;
+      animation: meter-drop-med 2.8s ease-in-out infinite;
+    }
+    @keyframes meter-drop-med {
+      0%, 100% { width: 62%; }
+      50% { width: 38%; }
+    }
+    .meter-low {
+      height: 10px; background: #ef4444; border-radius: 5px;
+      animation: meter-drop-low 3s ease-in-out infinite;
+    }
+    @keyframes meter-drop-low {
+      0%, 15% { width: 28%; opacity: 0.9; }
+      55%, 85% { width: 4%; opacity: 1; }
+      100% { width: 28%; opacity: 0.9; }
+    }
+  </style>
+</head>
+<body>
+<!-- BUDGET: tier M, B = 528px. Row 1 (238px) + Row 2 (152px) + Strip (70px) + gaps (32px) = 492px (93%) -->
+
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div style="margin-bottom: 18px;">
+    <div class="title" style="font-size: 2.65rem; margin: 0 0 4px 0;">Limitation: Over-Smoothing &amp; Feature Collapse</div>
+    <div class="subtitle" style="font-size: 1.4rem; margin: 0;">Why stacking deep message-passing layers erases node identity across the graph</div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <!-- Row 1: visual progression across layers -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Layer 0: distinct embeddings (node color = embedding) -->
+      <div class="panel panel-primary" data-step="1" style="flex: 1; padding: 20px 22px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.45rem; font-weight: 700; margin-bottom: 8px;">1. Shallow (Layer 0)</div>
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+          <div class="node-circle distinct-1"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle distinct-2"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle distinct-3"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle distinct-4"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle distinct-5"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle distinct-6"></div>
+        </div>
+        <div style="font-size: 0.98rem; font-weight: 600; line-height: 1.35; margin-bottom: 4px;">Feature diversity (Dirichlet energy): High</div>
+        <div style="height: 10px; background: #e2e8f0; border-radius: 5px; margin-bottom: 10px;"><div class="meter-high"></div></div>
+        <div style="font-size: 1.08rem; line-height: 1.38; margin-bottom: 0;">Nodes preserve unique local features \(h_v^{(0)}\), but lack long-range context.</div>
+      </div>
+
+      <div data-step="2" style="display: flex; justify-content: center; align-self: center;"><span class="arrow arrow-right">→</span></div>
+
+      <!-- Layer 2: blended embeddings -->
+      <div class="panel panel-accent" data-step="2" style="flex: 1; padding: 20px 22px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-accent" style="font-size: 1.45rem; font-weight: 700; margin-bottom: 8px;">2. Moderate (Layer 2–4)</div>
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+          <div class="node-circle blend-1"></div>
+          <div class="edge-link edge-mixing"></div>
+          <div class="node-circle blend-2"></div>
+          <div class="edge-link edge-mixing"></div>
+          <div class="node-circle blend-3"></div>
+          <div class="edge-link edge-mixing"></div>
+          <div class="node-circle blend-4"></div>
+          <div class="edge-link edge-mixing"></div>
+          <div class="node-circle blend-5"></div>
+          <div class="edge-link edge-mixing"></div>
+          <div class="node-circle blend-6"></div>
+        </div>
+        <div style="font-size: 0.98rem; font-weight: 600; line-height: 1.35; margin-bottom: 4px;">Feature diversity: Medium (Local Mixing)</div>
+        <div style="height: 10px; background: #e2e8f0; border-radius: 5px; margin-bottom: 10px;"><div class="meter-med"></div></div>
+        <div style="font-size: 1.08rem; line-height: 1.38; margin-bottom: 0;">Repeated neighborhood averaging acts as a low-pass filter, blending features.</div>
+      </div>
+
+      <div data-step="3" style="display: flex; justify-content: center; align-self: center;"><span class="arrow arrow-right">→</span></div>
+
+      <!-- Layer K: collapsed embeddings -->
+      <div class="panel panel-primary" data-step="3" style="flex: 1; padding: 20px 22px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.45rem; font-weight: 700; margin-bottom: 8px;">3. Deep Stack (Layer \(K \gg 1\))</div>
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+          <div class="node-circle collapse-node-1"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle collapse-node-1"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle collapse-node-2"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle collapse-node-2"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle collapse-node-3"></div>
+          <div class="edge-link"></div>
+          <div class="node-circle collapse-node-3"></div>
+        </div>
+        <div style="font-size: 0.98rem; font-weight: 600; line-height: 1.35; margin-bottom: 4px; color: #ef4444;">Feature diversity: Collapsed (\(\to 0\))</div>
+        <div style="height: 10px; background: #e2e8f0; border-radius: 5px; margin-bottom: 10px;"><div class="meter-low"></div></div>
+        <div style="font-size: 1.08rem; line-height: 1.38; margin-bottom: 0;">Receptive fields overlap globally: all node embeddings become indistinguishable.</div>
+      </div>
+    </div>
+
+    <!-- Row 2: Spectral Cause & The "Short Blanket" Consequence -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Cause -->
+      <div class="panel panel-accent" data-step="4" style="flex: 1; padding: 20px 24px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-accent" style="font-size: 1.45rem; font-weight: 700; margin-bottom: 6px;">Spectral Cause: Laplacian Smoothing</div>
+        <div style="font-size: 1.08rem; line-height: 1.42; margin-bottom: 0;">
+          Each message-passing layer averages a node with its neighbors \(\mathcal{N}(v)\). Stacking \(K\) layers repeatedly applies a <strong>low-pass graph filter</strong>, damping high-frequency node differences.
+        </div>
+      </div>
+
+      <!-- Consequence & Short-Blanket Trade-off -->
+      <div class="panel panel-primary" data-step="5" style="flex: 1; padding: 20px 24px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.45rem; font-weight: 700; margin-bottom: 6px;">The &ldquo;Short Blanket&rdquo; Depth Dilemma</div>
+        <div style="font-size: 1.08rem; line-height: 1.42; margin-bottom: 0;">
+          We cannot simply increase depth \(K\) for <strong>high-order feature fusion</strong>: few layers miss distant nodes, while deep stacks erase local node identity and ruin node-level tasks.
+        </div>
+      </div>
+    </div>
+
+    <!-- Closing strip: formal mathematical statement (Dirichlet energy collapse) -->
+    <div class="math-block" data-step="6" style="flex: none; padding: 12px; margin: 0; font-size: 1.2rem; text-align: center;">
+      \(\displaystyle \lim_{K \to \infty} \mathcal{E}_{\text{Dirichlet}}\!\left(H^{(K)}\right) = \sum_{(u,v) \in E} \left\| h_u^{(K)} - h_v^{(K)} \right\|_2^2 \;\longrightarrow\; 0 \quad\Longrightarrow\quad h_v^{(K)} \approx h_u^{(K)} \;\;\forall\, u, v \in V\)
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

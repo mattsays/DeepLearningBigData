@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Limitations: System-Level &amp; Integration Challenges</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+
+    .viz-box {
+      height: 68px; background: rgba(148, 163, 184, 0.08);
+      border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 14px;
+      margin-bottom: 10px; padding: 0 14px; overflow: hidden; position: relative;
+    }
+
+    /* --- GRAPHIC 1: Streaming Millisecond Graph Updates --- */
+    .stream-node { width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; position: relative; }
+    .stream-hub {
+      width: 24px; height: 24px; border-radius: 50%; background: #2563eb;
+      animation: hub-recompute 1.4s ease-in-out infinite;
+    }
+    @keyframes hub-recompute {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+      45%, 65% { background: #ef4444; transform: scale(1.18); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.25); }
+    }
+    .stream-edge-new {
+      width: 28px; height: 3px; border-top: 3px dashed #ef4444;
+      animation: flash-edge 1.4s ease-in-out infinite;
+    }
+    .stream-node-new {
+      width: 20px; height: 20px; border-radius: 50%; background: #ef4444;
+      animation: pop-node 1.4s ease-in-out infinite;
+    }
+    @keyframes pop-node {
+      0%, 20% { transform: scale(0); opacity: 0; }
+      40%, 80% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 8px #ef4444; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    @keyframes flash-edge {
+      0%, 25% { opacity: 0; width: 0; }
+      45%, 80% { opacity: 1; width: 28px; }
+      100% { opacity: 0; width: 28px; }
+    }
+    .ms-badge {
+      font-family: monospace; font-size: 0.85rem; font-weight: 700;
+      padding: 3px 8px; border-radius: 4px; background: #fee2e2; color: #dc2626;
+      border: 1px solid #fca5a5; animation: pulse-badge 0.7s steps(2, start) infinite;
+    }
+    @keyframes pulse-badge { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+    /* --- GRAPHIC 2: Graph-to-Text Serialization Overhead --- */
+    .mini-graph {
+      display: grid; grid-template-columns: repeat(2, 16px); gap: 8px;
+      animation: graph-shrink 2.6s ease-in-out infinite;
+    }
+    .mini-graph div { width: 16px; height: 16px; border-radius: 50%; background: #8b5cf6; }
+    @keyframes graph-shrink {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(0.88) rotate(8deg); opacity: 0.75; }
+    }
+    .token-stream { display: flex; gap: 4px; align-items: center; }
+    .tok-box {
+      font-family: monospace; font-size: 0.78rem; font-weight: 700;
+      padding: 3px 6px; border-radius: 4px; background: #e2e8f0; color: #1e293b;
+      border: 1px solid #94a3b8;
+    }
+    .tok-1 { animation: tok-appear 2.4s infinite 0.0s; }
+    .tok-2 { animation: tok-appear 2.4s infinite 0.3s; }
+    .tok-3 { animation: tok-appear 2.4s infinite 0.6s; }
+    .tok-4 { animation: tok-appear 2.4s infinite 0.9s; background: #fef3c7; border-color: #f59e0b; color: #b45309; }
+    @keyframes tok-appear {
+      0%, 15% { opacity: 0.25; transform: translateY(3px); }
+      40%, 85% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0.25; transform: translateY(3px); }
+    }
+
+    /* --- GRAPHIC 3: Irregular Memory Access & GPU Warp Stalls --- */
+    .mem-grid { display: flex; gap: 4px; align-items: center; }
+    .mem-cell {
+      width: 15px; height: 24px; border-radius: 3px; background: #cbd5e1;
+      border: 1px solid #94a3b8;
+    }
+    .mem-hit-1 { animation: random-fetch 1.6s infinite 0.0s; }
+    .mem-hit-2 { animation: random-fetch 1.6s infinite 0.5s; }
+    .mem-hit-3 { animation: random-fetch 1.6s infinite 1.0s; }
+    @keyframes random-fetch {
+      0%, 100% { background: #cbd5e1; transform: translateY(0); }
+      40%, 60% { background: #ef4444; border-color: #b91c1c; transform: translateY(-4px); box-shadow: 0 0 6px #ef4444; }
+    }
+    .gpu-lanes { display: flex; flex-direction: column; gap: 4px; width: 115px; }
+    .gpu-bar { height: 7px; border-radius: 3px; background: #22c55e; }
+    .stall-1 { width: 95%; animation: warp-stall-1 2s ease-in-out infinite; }
+    .stall-2 { width: 35%; background: #ef4444; animation: warp-stall-2 2s ease-in-out infinite; }
+    .stall-3 { width: 55%; background: #f59e0b; animation: warp-stall-3 2s ease-in-out infinite; }
+    @keyframes warp-stall-1 { 0%, 100% { width: 92%; } 50% { width: 70%; } }
+    @keyframes warp-stall-2 { 0%, 100% { width: 22%; opacity: 1; } 50% { width: 40%; opacity: 0.5; } }
+    @keyframes warp-stall-3 { 0%, 100% { width: 45%; } 50% { width: 25%; background: #ef4444; } }
+
+    /* --- GRAPHIC 4: Flattened Sequence & Lost Global Cycles --- */
+    .flat-chain { display: flex; align-items: center; gap: 4px; position: relative; padding-top: 12px; }
+    .flat-node { width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; z-index: 2; }
+    .flat-edge { width: 14px; height: 3px; background: #64748b; }
+    .lost-cycle-arc {
+      position: absolute; top: 0; left: 8px; width: 96px; height: 18px;
+      border: 2px dashed #ef4444; border-bottom: none; border-radius: 14px 14px 0 0;
+      animation: cycle-vanish 2.5s ease-in-out infinite;
+    }
+    @keyframes cycle-vanish {
+      0%, 20% { opacity: 1; border-color: #22c55e; }
+      55%, 85% { opacity: 0.12; border-color: #ef4444; transform: scaleY(0.6); }
+      100% { opacity: 1; border-color: #22c55e; }
+    }
+  </style>
+</head>
+<body>
+<!-- BUDGET: tier M, B = 528px. Row 1 (192px) + Arrows (28px) + Row 2 (192px) + Closing strip (54px) + gaps = 498px (94%) -->
+
+<div class="slide-layout" style="padding: 28px 48px 54px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div style="margin-bottom: 14px;">
+    <div class="title" style="font-size: 2.65rem; margin: 0 0 4px 0;">Limitations: System-Level &amp; Integration Challenges</div>
+    <div class="subtitle" style="font-size: 1.38rem; margin: 0;">Why streaming real-time graphs and GNN + LLM hybridization struggle in production</div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px;">
+
+    <!-- Row 1: the two limitations -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Limitation 1: scalability on streaming dynamic graphs -->
+      <div class="panel panel-primary" data-step="1" style="flex: 1; padding: 16px 22px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 8px;">1. Streaming Dynamic Graphs (\(\Delta t \sim \text{ms}\))</div>
+        <div class="viz-box">
+          <div style="display: flex; align-items: center;">
+            <div class="stream-node"></div>
+            <div style="width: 18px; height: 3px; background: #94a3b8;"></div>
+            <div class="stream-hub" title="Target node recomputing K-hop"></div>
+            <div class="stream-edge-new"></div>
+            <div class="stream-node-new" title="Incoming high-frequency edge/node"></div>
+          </div>
+          <div class="ms-badge">&Delta;t = 1ms &bull; Recompute!</div>
+        </div>
+        <div style="font-size: 1.04rem; line-height: 1.38; margin-bottom: 0;">
+          Nodes and edges mutate every millisecond (e.g., <strong>high-frequency financial transactions</strong>), forcing real-time \(K\)-hop embedding updates.
+        </div>
+      </div>
+
+      <!-- Limitation 2: GNN + LLM integration bottleneck -->
+      <div class="panel panel-accent" data-step="2" style="flex: 1; padding: 16px 22px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 8px;">2. The GNN + LLM Integration Bottleneck</div>
+        <div class="viz-box">
+          <div class="mini-graph">
+            <div></div><div></div><div></div><div></div>
+          </div>
+          <span class="arrow arrow-right" style="font-size: 1.35rem;">&rarr;</span>
+          <div class="token-stream">
+            <span class="tok-box tok-1">[v₁]</span>
+            <span class="tok-box tok-2">[e₁₂]</span>
+            <span class="tok-box tok-3">[v₂]</span>
+            <span class="tok-box tok-4">O(N&middot;L)</span>
+          </div>
+        </div>
+        <div style="font-size: 1.04rem; line-height: 1.38; margin-bottom: 0;">
+          Bridging GNNs and LLMs requires <strong>translating graph nodes into text sequences</strong> (or vice versa): a fragile, token-heavy alignment step.
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrows toward the consequences -->
+    <div style="flex: none; display: flex; align-items: center; justify-content: space-around; gap: 16px; height: 26px;">
+      <div data-step="3" style="display: flex; justify-content: center;"><span class="arrow arrow-down" style="font-size: 1.65rem;">&darr;</span></div>
+      <div data-step="4" style="display: flex; justify-content: center;"><span class="arrow arrow-down" style="font-size: 1.65rem;">&darr;</span></div>
+    </div>
+
+    <!-- Row 2: the consequences -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Consequence 1: GPU Parallelism Breakdown & Latency -->
+      <div class="panel panel-accent" data-step="3" style="flex: 1; padding: 16px 22px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 8px;">Consequence: Broken GPU Parallelism &amp; Latency</div>
+        <div class="viz-box">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+            <div style="font-size: 0.72rem; font-weight: 700; color: #64748b;">SPARSE RAM FETCHES</div>
+            <div class="mem-grid">
+              <div class="mem-cell mem-hit-1"></div>
+              <div class="mem-cell"></div>
+              <div class="mem-cell"></div>
+              <div class="mem-cell mem-hit-2"></div>
+              <div class="mem-cell"></div>
+              <div class="mem-cell mem-hit-3"></div>
+            </div>
+          </div>
+          <span style="font-weight: 700; color: #ef4444; font-size: 1.1rem;">&rArr;</span>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="font-size: 0.72rem; font-weight: 700; color: #ef4444;">GPU THREAD STALLS</div>
+            <div class="gpu-lanes">
+              <div class="gpu-bar stall-1"></div>
+              <div class="gpu-bar stall-2"></div>
+              <div class="gpu-bar stall-3"></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size: 1.04rem; line-height: 1.38; margin-bottom: 0;">
+          Continuous neighborhood recomputation triggers <strong>irregular memory access</strong> (pointer chasing), breaking GPU parallelism and causing prohibitive industrial latency.
+        </div>
+      </div>
+
+      <!-- Consequence 2: Global Topology Lost & Compute Overhead -->
+      <div class="panel panel-primary" data-step="4" style="flex: 1; padding: 16px 22px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 8px;">Consequence: Overhead &amp; Lost Global Topology</div>
+        <div class="viz-box">
+          <div class="flat-chain">
+            <div class="lost-cycle-arc" title="Non-Euclidean cycles and multi-hop bridges lost"></div>
+            <div class="flat-node"></div>
+            <div class="flat-edge"></div>
+            <div class="flat-node"></div>
+            <div class="flat-edge"></div>
+            <div class="flat-node"></div>
+            <div class="flat-edge"></div>
+            <div class="flat-node" style="background: #94a3b8;"></div>
+          </div>
+          <div style="font-family: monospace; font-size: 0.8rem; color: #dc2626; font-weight: 700; line-height: 1.2;">
+            Cycles &amp; k-hops<br>erased in 1D text
+          </div>
+        </div>
+        <div style="font-size: 1.04rem; line-height: 1.38; margin-bottom: 0;">
+          Text serialization incurs <strong>massive compute overhead</strong> (\(\mathcal{O}(N^2)\) attention) and flattens non-Euclidean structure, blinding the LLM to global graph topology.
+        </div>
+      </div>
+    </div>
+
+    <!-- Closing strip: formal system summary -->
+    <div class="math-block" data-step="5" style="flex: none; padding: 10px 14px; margin: 0; font-size: 1.12rem; text-align: center;">
+      \(\displaystyle \underbrace{\Delta G_t \implies \text{Random RAM Access } \mathcal{O}(b^K)}_{\text{Breaks GPU SIMD Parallelism}} \qquad\Big|\qquad \underbrace{\text{Serialize}(G) \to \text{1D Tokens}}_{\text{Loses Structural Topology + } \mathcal{O}(L_{\text{text}}^2) \text{ LLM Cost}}\)
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
