@@ -1,6 +1,6 @@
-# Spiking Neural Networks: come funzionano, come si addestrano e a cosa servono
+# Spiking Neural Networks: How They Work, How They Are Trained, and What They Are Used For
 
-Questa guida introduce le **Spiking Neural Networks (SNN)** e segue i cinque punti della presentazione:
+This guide introduces **Spiking Neural Networks (SNNs)** and follows the five points of the presentation:
 
 1. General Idea
 2. Training / Inference Procedures
@@ -8,272 +8,272 @@ Questa guida introduce le **Spiking Neural Networks (SNN)** e segue i cinque pun
 4. Current Limitations
 5. Future Improvements
 
-Le fonti includono lavori pubblicati fino al 2026. Le applicazioni sperimentali sono distinte dalle direzioni di ricerca.
+The sources include papers published through 2026. Experimental applications are distinguished from research directions.
 
 ## 1. General Idea
 
-### 1.1 L'intuizione fondamentale
+### 1.1 The Core Intuition
 
-Una SNN è una rete neurale in cui i neuroni comunicano attraverso **eventi discreti nel tempo**, chiamati *spike*. Ogni neurone mantiene uno **stato interno** che cambia quando riceve input e continua a evolvere fra un input e il successivo.
+An SNN is a neural network in which neurons communicate through **discrete events in time**, called *spikes*. Each neuron maintains an **internal state** that changes when it receives input and continues to evolve between successive inputs.
 
-Per capire il comportamento della rete bisogna quindi considerare sia **quali neuroni si attivano**, sia **quando si attivano**.
+Understanding the network's behavior therefore requires considering both **which neurons fire** and **when they fire**.
 
-In una rete convenzionale, un neurone viene spesso descritto così:
+In a conventional network, a neuron is often described as follows:
 
 $$
 y = f\left(\sum_j w_j x_j + b\right)
 $$
 
-Gli input vengono pesati, sommati e trasformati da una funzione di attivazione. Nelle SNN, invece, gli input modificano una variabile che conserva traccia del passato: il **potenziale di membrana**.
+The inputs are weighted, summed, and transformed by an activation function. In SNNs, inputs instead modify a variable that retains a trace of the past: the **membrane potential**.
 
-Questo introduce una memoria temporale anche quando i collegamenti fra i livelli sono soltanto in avanti. Le reti convenzionali possono a loro volta elaborare sequenze, per esempio attraverso ricorrenza: la memoria non è un'esclusiva delle SNN.
+This introduces temporal memory even when connections between layers are purely feedforward. Conventional networks can also process sequences, for example through recurrence: memory is not exclusive to SNNs.
 
-### 1.2 Il neurone Leaky Integrate-and-Fire
+### 1.2 The Leaky Integrate-and-Fire Neuron
 
-Uno dei modelli più usati è il **Leaky Integrate-and-Fire**, abbreviato **LIF**. Il nome descrive tre operazioni:
+One of the most widely used models is the **Leaky Integrate-and-Fire** neuron, abbreviated **LIF**. Its name describes three operations:
 
-- **Integrate:** il neurone accumula l'effetto degli input ricevuti.
-- **Leaky:** in assenza di nuovi input, il potenziale tende al valore di riposo.
-- **Fire:** quando il potenziale raggiunge una soglia, il neurone emette uno spike e il potenziale viene ridotto o riportato a un valore di reset.
+- **Integrate:** the neuron accumulates the effects of incoming inputs.
+- **Leaky:** in the absence of new inputs, the potential tends toward its resting value.
+- **Fire:** when the potential reaches a threshold, the neuron emits a spike and the potential is reduced or returned to a reset value.
 
-Un'analogia è un recipiente con una piccola perdita. Ogni input aggiunge acqua; la perdita la fa uscire; raggiungere un certo livello provoca un'attivazione e uno svuotamento.
+An analogy is a container with a small leak. Each input adds water; the leak lets it escape; reaching a certain level triggers firing and empties the container.
 
-Il LIF è una semplificazione del neurone biologico: rappresenta gli istanti degli spike senza ricostruire la forma completa dell'impulso elettrico. [1]
+The LIF model simplifies a biological neuron: it represents spike times without reconstructing the full shape of the electrical impulse. [1]
 
-### 1.3 Un modello matematico semplificato
+### 1.3 A Simplified Mathematical Model
 
-Consideriamo una versione a passi temporali discreti, con potenziale di riposo e reset pari a zero.
+Consider a version with discrete time steps and resting and reset potentials both equal to zero.
 
-Prima si calcola il potenziale prima del reset:
+First, calculate the potential before reset:
 
 $$
 v_i[t] = \beta u_i[t-1] + \sum_j w_{ij}s_j[t]
 $$
 
-Poi si decide se emettere uno spike:
+Then, determine whether to emit a spike:
 
 $$
 s_i[t] =
 \begin{cases}
-1 & \text{se } v_i[t] \geq \theta_i \\
-0 & \text{altrimenti}
+1 & \text{if } v_i[t] \geq \theta_i \\
+0 & \text{otherwise}
 \end{cases}
 $$
 
-Infine si applica un **hard reset**:
+Finally, apply a **hard reset**:
 
 $$
 u_i[t] =
 \begin{cases}
-0 & \text{se } s_i[t] = 1 \\
-v_i[t] & \text{altrimenti}
+0 & \text{if } s_i[t] = 1 \\
+v_i[t] & \text{otherwise}
 \end{cases}
 $$
 
-| Simbolo | Significato |
+| Symbol | Meaning |
 | --- | --- |
-| $u_i[t]$ | Potenziale del neurone dopo l'eventuale reset |
-| $v_i[t]$ | Potenziale prima dell'eventuale reset |
-| $s_j[t]$ | Presenza o assenza di uno spike in ingresso |
-| $w_{ij}$ | Peso del collegamento dal neurone $j$ al neurone $i$ |
-| $\beta$ | Fattore di mantenimento del potenziale, con $0 < \beta < 1$ |
-| $\theta_i$ | Soglia di attivazione |
+| $u_i[t]$ | The neuron's potential after any reset |
+| $v_i[t]$ | The potential before any reset |
+| $s_j[t]$ | The presence or absence of an incoming spike |
+| $w_{ij}$ | The weight of the connection from neuron $j$ to neuron $i$ |
+| $\beta$ | The potential retention factor, with $0 < \beta < 1$ |
+| $\theta_i$ | The firing threshold |
 
-Un valore elevato di $\beta$ mantiene più a lungo l'effetto degli input; un valore più basso lo fa decadere più rapidamente. Nel modello esponenziale, $\beta = e^{-\Delta t/\tau_m}$, dove $\tau_m$ è la costante di tempo della membrana.
+A high value of $\beta$ preserves the effect of inputs for longer; a lower value causes it to decay more quickly. In the exponential model, $\beta = e^{-\Delta t/\tau_m}$, where $\tau_m$ is the membrane time constant.
 
-Queste equazioni descrivono una scelta semplice: altri modelli includono correnti sinaptiche, ritardi, adattamento o un diverso reset. [1][2]
+These equations describe a simple modeling choice: other models include synaptic currents, delays, adaptation, or a different reset mechanism. [1][2]
 
-### 1.4 Esempio numerico
+### 1.4 Numerical Example
 
-Supponiamo di avere:
+Suppose we have:
 
-- potenziale iniziale $u[0] = 0$;
-- soglia $\theta = 1$;
-- mantenimento $\beta = 0{,}8$;
-- un input di ampiezza $0{,}4$ a ogni passo.
+- an initial potential of $u[0] = 0$;
+- a threshold of $\theta = 1$;
+- a retention factor of $\beta = 0.8$;
+- an input of amplitude $0.4$ at every time step.
 
-| Passo | Potenziale prima del reset | Spike emesso? | Potenziale dopo il reset |
+| Step | Potential Before Reset | Spike Emitted? | Potential After Reset |
 | --- | --- | --- | --- |
-| 1 | $0{,}8 \cdot 0 + 0{,}4 = 0{,}4$ | No | $0{,}4$ |
-| 2 | $0{,}8 \cdot 0{,}4 + 0{,}4 = 0{,}72$ | No | $0{,}72$ |
-| 3 | $0{,}8 \cdot 0{,}72 + 0{,}4 = 0{,}976$ | No | $0{,}976$ |
-| 4 | $0{,}8 \cdot 0{,}976 + 0{,}4 = 1{,}1808$ | Sì | $0$ |
-| 5 | $0{,}8 \cdot 0 + 0{,}4 = 0{,}4$ | No | $0{,}4$ |
+| 1 | $0.8 \cdot 0 + 0.4 = 0.4$ | No | $0.4$ |
+| 2 | $0.8 \cdot 0.4 + 0.4 = 0.72$ | No | $0.72$ |
+| 3 | $0.8 \cdot 0.72 + 0.4 = 0.976$ | No | $0.976$ |
+| 4 | $0.8 \cdot 0.976 + 0.4 = 1.1808$ | Yes | $0$ |
+| 5 | $0.8 \cdot 0 + 0.4 = 0.4$ | No | $0.4$ |
 
-Il neurone si attiva al quarto passo perché gli input si sono accumulati abbastanza rapidamente.
+The neuron fires at the fourth step because the inputs have accumulated quickly enough.
 
-Se fra gli input inseriamo intervalli sufficientemente lunghi, il potenziale decade e la soglia può non essere mai raggiunta. **Lo stesso numero di input può quindi produrre risultati diversi a seconda della loro distribuzione temporale.**
+If sufficiently long intervals are inserted between inputs, the potential decays and the threshold may never be reached. **The same number of inputs can therefore produce different results depending on their distribution over time.**
 
-### 1.5 Dallo spike alla rete
+### 1.5 From Spikes to a Network
 
-Uno spike emesso da un neurone viene trasmesso ai neuroni collegati. Il suo effetto dipende dal peso sinaptico: un collegamento eccitatorio favorisce l'attivazione, uno inibitorio la ostacola.
+A spike emitted by a neuron is transmitted to connected neurons. Its effect depends on the synaptic weight: an excitatory connection promotes firing, while an inhibitory connection suppresses it.
 
-Nelle SNN binarie più comuni, lo spike indica un evento presente o assente. Questo non rende necessariamente binari i pesi o il potenziale di membrana.
+In the most common binary SNNs, a spike indicates whether an event is present or absent. This does not necessarily make the weights or membrane potential binary.
 
-L'informazione può essere rappresentata in modi diversi:
+Information can be represented in different ways:
 
-- **Rate coding:** attraverso il numero o la frequenza degli spike in una finestra temporale.
-- **Temporal coding:** attraverso gli istanti degli spike, la loro relazione temporale o il tempo del primo spike.
+- **Rate coding:** through the number or frequency of spikes within a time window.
+- **Temporal coding:** through spike times, their temporal relationships, or the time of the first spike.
 
-Nelle reti addestrate direttamente, i livelli nascosti possono anche sviluppare una rappresentazione senza imporre esplicitamente un codice di questo tipo. [3]
+In directly trained networks, hidden layers can also develop a representation without explicitly imposing a coding scheme of this kind. [3]
 
 ## 2. Training / Inference Procedures
 
-**Inference** significa usare il modello per produrre una risposta. **Training** significa modificare i suoi parametri affinché produca risposte migliori.
+**Inference** means using the model to produce an answer. **Training** means modifying its parameters so that it produces better answers.
 
-### 2.1 Inference: come si usa una SNN
+### 2.1 Inference: How to Use an SNN
 
-Consideriamo un classificatore che riconosce una parola pronunciata.
+Consider a classifier that recognizes a spoken word.
 
-1. **Preparazione dell'input.** Il segnale audio viene trasformato in una rappresentazione adatta al modello. Può diventare una sequenza di spike oppure alimentare il primo livello attraverso valori numerici, per esempio correnti d'ingresso.
-2. **Elaborazione temporale.** A ogni passo, i neuroni integrano gli input, aggiornano il potenziale ed eventualmente emettono spike.
-3. **Propagazione.** Gli spike influenzano i neuroni successivi attraverso i collegamenti appresi.
-4. **Lettura dell'output.** Un meccanismo di decodifica trasforma l'attività finale in una classe o in un valore numerico.
+1. **Input preparation.** The audio signal is transformed into a representation suitable for the model. It can become a sequence of spikes or feed the first layer through numerical values, such as input currents.
+2. **Temporal processing.** At each step, neurons integrate inputs, update their potentials, and emit spikes if the threshold is reached.
+3. **Propagation.** Spikes influence subsequent neurons through the learned connections.
+4. **Output readout.** A decoding mechanism transforms the final activity into a class or a numerical value.
 
-La lettura può usare il conteggio degli spike, il tempo del primo spike o uno stato continuo di uscita. Per esempio, se ogni neurone finale rappresenta una parola, si può scegliere quello con più spike nella finestra osservata.
+The readout can use spike counts, first-spike times, or a continuous output state. For example, if each output neuron represents a word, the neuron with the most spikes within the observation window can be selected.
 
-Durante l'inferenza ordinaria **i pesi rimangono fissi, mentre gli stati interni cambiano**. Sistemi con apprendimento online possono invece aggiornare anche i pesi durante l'uso. [2]
+During ordinary inference, **the weights remain fixed while the internal states change**. Systems with online learning can also update their weights during use. [2]
 
-Il numero di passi temporali è una scelta importante: osservare più a lungo può dare più evidenza alla decisione, ma può aumentare latenza e attività.
+The number of time steps is an important choice: observing for longer can provide more evidence for a decision, but may increase latency and activity.
 
-### 2.2 Perché il training è difficile
+### 2.2 Why Training Is Difficult
 
-La generazione di uno spike può essere scritta come una funzione a gradino:
+Spike generation can be written as a step function:
 
 $$
 s[t] = H(v[t]-\theta)
 $$
 
-La sua derivata è zero quasi ovunque e non è definita alla soglia. La backpropagation standard non ottiene quindi un segnale utile per capire come piccoli cambiamenti dei pesi modifichino l'emissione degli spike.
+Its derivative is zero almost everywhere and undefined at the threshold. Standard backpropagation therefore does not obtain a useful signal indicating how small changes in the weights would affect spike generation.
 
-Esiste anche una dipendenza temporale: un peso può influenzare il potenziale adesso e contribuire a uno spike diversi passi dopo. Bisogna attribuire l'errore sia ai collegamenti sia agli istanti precedenti. [3]
+There is also a temporal dependency: a weight can influence the potential now and contribute to a spike several steps later. The error must be attributed to both the connections and earlier time steps. [3]
 
-### 2.3 Metodo A: addestramento diretto con surrogate gradients
+### 2.3 Method A: Direct Training with Surrogate Gradients
 
-Un approccio molto usato mantiene gli spike discreti nel passaggio in avanti e usa una **derivata sostitutiva**, o *surrogate gradient*, nel passaggio all'indietro.
+A widely used approach keeps spikes discrete during the forward pass and uses a **substitute derivative**, or *surrogate gradient*, during the backward pass.
 
-La procedura è:
+The procedure is:
 
-1. Presentare una sequenza alla rete.
-2. Calcolare gli stati e gli spike nel tempo.
-3. Confrontare l'output con il target tramite una funzione di perdita.
-4. Propagare il segnale di errore attraverso livelli e tempo.
-5. Aggiornare i parametri con un ottimizzatore.
+1. Present a sequence to the network.
+2. Calculate states and spikes over time.
+3. Compare the output with the target using a loss function.
+4. Propagate the error signal across layers and time.
+5. Update the parameters using an optimizer.
 
-La propagazione temporale viene spesso effettuata con **Backpropagation Through Time (BPTT)**, come nelle reti ricorrenti. Il surrogate gradient sostituisce la derivata problematica della soglia: non coincide necessariamente con il gradiente esatto della rete discreta.
+Temporal backpropagation is often performed using **Backpropagation Through Time (BPTT)**, as in recurrent networks. The surrogate gradient replaces the problematic derivative of the threshold function: it does not necessarily coincide with the exact gradient of the discrete network.
 
-**Il neurone continua a emettere spike durante il forward pass; l'approssimazione riguarda il backward pass.** [3]
+**The neuron continues to emit spikes during the forward pass; the approximation concerns the backward pass.** [3]
 
-### 2.4 Metodo B: conversione ANN → SNN
+### 2.4 Method B: ANN → SNN Conversion
 
-Si addestra prima una rete convenzionale e poi se ne costruisce una versione spiking che ne approssima il comportamento.
+A conventional network is trained first, and a spiking version is then constructed to approximate its behavior.
 
-Un esempio è rappresentare un'attivazione elevata con una frequenza elevata di spike. La conversione permette di riutilizzare procedure di training consolidate, ma può richiedere calibrazione e finestre temporali sufficientemente lunghe. [4]
+One example is representing a high activation with a high spike rate. Conversion makes it possible to reuse established training procedures, but may require calibration and sufficiently long time windows. [4]
 
-### 2.5 Metodo C: regole locali e STDP
+### 2.5 Method C: Local Rules and STDP
 
-La **Spike-Timing-Dependent Plasticity (STDP)** modifica un collegamento in funzione della relazione temporale fra gli spike presinaptici e postsinaptici.
+**Spike-Timing-Dependent Plasticity (STDP)** modifies a connection based on the temporal relationship between presynaptic and postsynaptic spikes.
 
-Nella forma classica, uno spike presinaptico poco prima di quello postsinaptico può rafforzare il collegamento; l'ordine inverso può indebolirlo. La regola usa informazioni locali, ma da sola non garantisce l'apprendimento di un obiettivo supervisionato complesso.
+In its classical form, a presynaptic spike occurring shortly before a postsynaptic spike can strengthen the connection; the reverse order can weaken it. The rule uses local information, but on its own does not guarantee that a complex supervised objective will be learned.
 
-Esistono anche varianti modulate da ricompense o altri segnali. Non tutte le SNN sono quindi addestrate con STDP e non tutte apprendono durante l'inferenza. [4]
+Variants modulated by rewards or other signals also exist. Therefore, not all SNNs are trained with STDP, and not all learn during inference. [4]
 
 ## 3. Current Applications
 
-Le SNN sono particolarmente interessanti quando i dati evolvono nel tempo, gli eventi sono sparsi e il dispositivo deve rispondere con un budget energetico limitato.
+SNNs are particularly interesting when data evolve over time, events are sparse, and the device must respond within a limited energy budget.
 
-### 3.1 Visione a eventi e robotica
+### 3.1 Event-Based Vision and Robotics
 
-Una camera a eventi registra cambiamenti locali di luminosità anziché produrre soltanto immagini complete a intervalli regolari. Questo offre un flusso temporale adatto all'elaborazione spiking.
+An event camera records local changes in brightness rather than only producing complete images at regular intervals. This provides a temporal stream suitable for spiking processing.
 
-Uno studio pubblicato su *Science Robotics* nel 2024 ha dimostrato una pipeline con camera a eventi e SNN su Intel Loihi per il controllo di un drone reale, includendo hovering, atterraggio e manovre laterali. È una dimostrazione sperimentale di percezione e controllo neuromorfici. [5]
+A study published in *Science Robotics* in 2024 demonstrated a pipeline using an event camera and an SNN on Intel Loihi to control a real drone, including hovering, landing, and lateral maneuvers. It is an experimental demonstration of neuromorphic perception and control. [5]
 
-### 3.2 Audio e keyword spotting
+### 3.2 Audio and Keyword Spotting
 
-Riconoscere poche parole in un flusso audio continuo è un caso d'uso interessante per dispositivi che rimangono sempre in ascolto.
+Recognizing a small set of words in a continuous audio stream is an interesting use case for devices that are always listening.
 
-Un lavoro pubblicato online nel 2025 e incluso in un volume IEEE del 2026 propone un sistema di *streaming keyword spotting* con neuroni **resonate-and-fire**, quantizzazione e arresto anticipato della decisione. Si tratta di un esempio di ricerca su modelli compatti per dispositivi edge. [6]
+A paper published online in 2025 and included in a 2026 IEEE volume proposes a *streaming keyword spotting* system with **resonate-and-fire** neurons, quantization, and early stopping of the decision process. It is an example of research on compact models for edge devices. [6]
 
-### 3.3 Elaborazione tattile
+### 3.3 Tactile Processing
 
-Il contatto con una superficie genera sequenze temporali che possono essere elaborate da una SNN. Un lavoro sulla lettura del Braille ha confrontato classificatori spiking su Loihi con modelli convenzionali, considerando anche accuratezza, consumo e ritardo. [7]
+Contact with a surface generates temporal sequences that can be processed by an SNN. A study on Braille reading compared spiking classifiers on Loihi with conventional models, considering accuracy, power consumption, and delay. [7]
 
-Questi esempi mostrano compiti concreti. Il risultato ottenuto in uno specifico sistema non implica automaticamente lo stesso vantaggio in ogni applicazione.
+These examples demonstrate concrete tasks. A result obtained in one specific system does not automatically imply the same advantage in every application.
 
 ## 4. Current Limitations
 
-### 4.1 Costo del training temporale
+### 4.1 The Cost of Temporal Training
 
-La BPTT può richiedere di conservare molti stati intermedi. Allungare la sequenza o aumentare la dimensione della rete può aumentare memoria e calcolo. I surrogate gradients rendono possibile l'ottimizzazione, ma restano approssimazioni. [3]
+BPTT may require storing many intermediate states. Increasing the sequence length or network size can increase memory and computation requirements. Surrogate gradients make optimization possible, but remain approximations. [3]
 
-### 4.2 Compromesso fra accuratezza, latenza e attività
+### 4.2 The Trade-Off Between Accuracy, Latency, and Activity
 
-Una finestra più lunga può migliorare una stima basata sul conteggio degli spike, ma ritarda la risposta. Ridurre troppo gli spike può invece rendere più difficile trasmettere l'informazione necessaria.
+A longer window can improve an estimate based on spike counts, but delays the response. Reducing spikes too aggressively can instead make it harder to transmit the necessary information.
 
-L'obiettivo dipende dal compito: bisogna trovare un equilibrio utile fra qualità della risposta, tempo e risorse. [4]
+The objective depends on the task: a useful balance must be found between response quality, time, and resources. [4]
 
-### 4.3 Codifica di dati non basati su eventi
+### 4.3 Encoding Data That Are Not Event-Based
 
-Per dati statici, come una fotografia, convertire l'informazione in una sequenza temporale introduce una scelta progettuale e può aggiungere lavoro. L'input diretto numerico è un'alternativa, ma il vantaggio complessivo va comunque valutato. [2][4]
+For static data, such as a photograph, converting information into a temporal sequence introduces a design choice and can add work. Direct numerical input is an alternative, but the overall benefit still needs to be assessed. [2][4]
 
-### 4.4 Dipendenza dall'hardware
+### 4.4 Hardware Dependence
 
-Una SNN può essere simulata su CPU o GPU. Per sfruttare gli eventi sparsi, tuttavia, serve un'esecuzione capace di evitare lavoro inutile.
+An SNN can be simulated on a CPU or GPU. Exploiting sparse events, however, requires execution that can avoid unnecessary work.
 
-L'hardware neuromorfico cerca di supportare questo comportamento e di ridurre il movimento dei dati fra memoria e calcolo. Il vantaggio dipende comunque dal modello, dalla piattaforma e dal carico di lavoro. Una rete simulata con operazioni dense può non sfruttare la sparsità degli spike. [8]
+Neuromorphic hardware aims to support this behavior and reduce data movement between memory and computation. The advantage still depends on the model, platform, and workload. A network simulated using dense operations may not exploit spike sparsity. [8]
 
-### 4.5 Confronti energetici e benchmark
+### 4.5 Energy Comparisons and Benchmarks
 
-Dire che una SNN consuma meno richiede un confronto misurabile. Bisogna chiarire:
+Claiming that an SNN consumes less energy requires a measurable comparison. It is necessary to clarify:
 
-- se l'accuratezza e la latenza sono comparabili;
-- se si misura il solo chip oppure il sistema completo;
-- se sono inclusi codifica, comunicazione e consumi di base;
-- se il riferimento convenzionale è ottimizzato per quel dispositivo.
+- whether accuracy and latency are comparable;
+- whether measurements cover only the chip or the complete system;
+- whether encoding, communication, and baseline power consumption are included;
+- whether the conventional baseline is optimized for that device.
 
-**Un basso numero di spike non equivale da solo a una misura di energia.** NeuroBench propone un framework per valutare algoritmi e sistemi neuromorfici in modo più sistematico. [9]
+**A low spike count alone is not an energy measurement.** NeuroBench proposes a framework for evaluating neuromorphic algorithms and systems more systematically. [9]
 
 ## 5. Future Improvements
 
-### 5.1 Training con meno memoria
+### 5.1 Training with Less Memory
 
-Una direzione è ridurre la dipendenza dalla conservazione dell'intera storia temporale, usando aggiornamenti online, segnali locali o approssimazioni del gradiente. La sfida è mantenere una buona qualità dell'apprendimento. [3]
+One direction is to reduce the need to store the entire temporal history by using online updates, local signals, or gradient approximations. The challenge is to maintain good learning performance. [3]
 
-### 5.2 Apprendimento sul dispositivo
+### 5.2 On-Device Learning
 
-Aggiornare il modello direttamente sul dispositivo può permettere l'adattamento a nuovi utenti o ambienti. Sono però necessari hardware e algoritmi compatibili con i vincoli di memoria ed energia.
+Updating the model directly on the device can enable adaptation to new users or environments. However, this requires hardware and algorithms compatible with memory and energy constraints.
 
-Uno studio di marzo 2026 ha presentato un'architettura multicore per il training diretto delle SNN, dimostrata su FPGA anche in configurazioni distribuite. È un risultato di ricerca verso questa direzione, non una capacità già presente in tutti i processori neuromorfici. [10]
+A March 2026 study presented a multicore architecture for direct SNN training, demonstrated on FPGAs, including distributed configurations. This is a research result toward that goal, rather than a capability already available in all neuromorphic processors. [10]
 
-### 5.3 Meno spike e risposte più rapide
+### 5.3 Fewer Spikes and Faster Responses
 
-Sfruttare meglio il timing degli spike può ridurre la necessità di lunghe finestre di conteggio. Anche interrompere l'elaborazione quando la decisione è sufficientemente affidabile può evitare lavoro aggiuntivo. Queste strategie devono essere valutate insieme all'accuratezza. [3][6]
+Making better use of spike timing can reduce the need for long counting windows. Stopping processing when the decision is sufficiently reliable can also avoid additional work. These strategies must be evaluated together with accuracy. [3][6]
 
-### 5.4 Progettazione congiunta di algoritmo e hardware
+### 5.4 Joint Algorithm and Hardware Design
 
-Rete, precisione dei pesi, memoria e comunicazione possono essere progettate insieme. Un modello accurato in simulazione deve anche adattarsi alle risorse della piattaforma su cui verrà eseguito. [8][10]
+The network, weight precision, memory, and communication can be designed together. A model that is accurate in simulation must also fit the resources of the platform on which it will run. [8][10]
 
-### 5.5 Valutazioni più riproducibili
+### 5.5 More Reproducible Evaluations
 
-Benchmark comuni e misure dell'intero sistema possono chiarire dove le SNN offrono vantaggi pratici e dove rimangono margini di miglioramento. Questo comprende accuratezza, latenza, memoria ed energia, con condizioni di confronto esplicite. [9]
+Shared benchmarks and measurements of the complete system can clarify where SNNs offer practical advantages and where there is still room for improvement. This includes accuracy, latency, memory, and energy, with explicit comparison conditions. [9]
 
-## Concetti da ricordare per la presentazione
+## Key Points to Remember for the Presentation
 
-- Una SNN elabora eventi attraverso neuroni che mantengono uno stato nel tempo.
-- Il neurone LIF integra gli input, perde gradualmente potenziale ed emette uno spike alla soglia.
-- Il timing degli input può cambiare la risposta anche a parità di numero di spike.
-- Il training può usare surrogate gradients, conversione da ANN o regole locali.
-- L'efficienza energetica dipende dall'intero sistema e deve essere misurata.
+- An SNN processes events through neurons that maintain a state over time.
+- The LIF neuron integrates inputs, gradually loses potential, and emits a spike at the threshold.
+- Input timing can change the response even when the number of spikes is the same.
+- Training can use surrogate gradients, conversion from ANNs, or local rules.
+- Energy efficiency depends on the entire system and must be measured.
 
-## Fonti
+## References
 
-1. **Gerstner et al. — Neuronal Dynamics, sezione 1.3: Integrate-and-Fire Models.** Modello LIF, integrazione, decadimento e soglia. <https://neuronaldynamics.epfl.ch/online/Ch1.S3.html>
-2. **Eshraghian — Tutorial 5: Training Spiking Neural Networks with snnTorch.** Stato ricorrente, input, training e lettura dell'output. <https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html>
-3. **Neftci, Mostafa e Zenke (2019) — Surrogate Gradient Learning in Spiking Neural Networks.** Problema della derivata, codifica temporale e metodi di apprendimento. <https://arxiv.org/html/1901.09948v2>
-4. **Eshraghian et al. (2023) — Training Spiking Neural Networks Using Lessons From Deep Learning.** Panoramica su modelli, codifica, conversione e training. Il preprint iniziale è del 2021; la versione citata è aggiornata al 2023. <https://arxiv.org/abs/2109.12894>
-5. **Paredes-Vallés et al. (2024) — Fully neuromorphic vision and control for autonomous drone flight.** Science Robotics. <https://pubmed.ncbi.nlm.nih.gov/38748781/>
-6. **Lightweight Streaming Keyword Spotting System Based on Resonate-and-Fire Neurons.** IEEE Transactions on Cognitive and Developmental Systems; pubblicazione online 2025, volume 2026. <https://ieeexplore.ieee.org/document/11120352/>
+1. **Gerstner et al.: Neuronal Dynamics, Section 1.3: Integrate-and-Fire Models.** The LIF model, integration, decay, and threshold. <https://neuronaldynamics.epfl.ch/online/Ch1.S3.html>
+2. **Eshraghian: Tutorial 5: Training Spiking Neural Networks with snnTorch.** Recurrent state, inputs, training, and output readout. <https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html>
+3. **Neftci, Mostafa, and Zenke (2019): Surrogate Gradient Learning in Spiking Neural Networks.** The derivative problem, temporal coding, and learning methods. <https://arxiv.org/html/1901.09948v2>
+4. **Eshraghian et al. (2023): Training Spiking Neural Networks Using Lessons From Deep Learning.** Overview of models, encoding, conversion, and training. The initial preprint is from 2021; the cited version was updated in 2023. <https://arxiv.org/abs/2109.12894>
+5. **Paredes-Vallés et al. (2024): Fully neuromorphic vision and control for autonomous drone flight.** Science Robotics. <https://pubmed.ncbi.nlm.nih.gov/38748781/>
+6. **Lightweight Streaming Keyword Spotting System Based on Resonate-and-Fire Neurons.** IEEE Transactions on Cognitive and Developmental Systems; published online in 2025, included in a 2026 volume. <https://ieeexplore.ieee.org/document/11120352/>
 7. **Braille Letter Reading: A Benchmark for Spatio-Temporal Pattern Recognition on Neuromorphic Hardware (2022).** <https://arxiv.org/abs/2205.15864>
-8. **Davies et al. (2021) — Advancing Neuromorphic Computing With Loihi: A Survey of Results and Outlook.** Proceedings of the IEEE. <https://doi.org/10.1109/JPROC.2021.3067593>
+8. **Davies et al. (2021): Advancing Neuromorphic Computing With Loihi: A Survey of Results and Outlook.** Proceedings of the IEEE. <https://doi.org/10.1109/JPROC.2021.3067593>
 9. **The NeuroBench Framework for Benchmarking Neuromorphic Computing Algorithms and Systems (2025).** Nature Communications. <https://www.nature.com/articles/s41467-025-56739-4>
-10. **Li et al. (2026) — A Highly Energy-Efficient Multi-Core Neuromorphic Architecture for Training Deep Spiking Neural Networks.** Nature Communications. <https://pubmed.ncbi.nlm.nih.gov/41881988/>
+10. **Li et al. (2026): A Highly Energy-Efficient Multi-Core Neuromorphic Architecture for Training Deep Spiking Neural Networks.** Nature Communications. <https://pubmed.ncbi.nlm.nih.gov/41881988/>
