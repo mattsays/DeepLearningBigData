@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Graph Autoencoders (GAE)</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+  </style>
+</head>
+<body>
+<!-- BUDGET: tier S, B = 528px = row1 (pipeline, 3 panels + 2 arrows, 352px each) ~320 + gap 16 + row2 (loss + applications) ~130 + gap 16 + takeaway strip ~44 = ~526px (96%); flex rows absorb the remainder -->
+
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div style="margin-bottom: 20px;">
+    <div class="title" style="font-size: 2.75rem; margin: 0 0 4px 0;">Graph Autoencoders (GAE)</div>
+    <div class="subtitle" style="font-size: 1.5rem; margin: 0;">Learning latent node representations by reconstructing graph connectivity</div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <!-- Row 1: ENCODER → LATENT SPACE → DECODER -->
+    <div style="flex: 2.5; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Stage 1: Encoder -->
+      <div class="panel panel-primary" data-step="1" style="flex: 1; padding: 14px 16px; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px;">
+        <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; line-height: 1.4; margin: 0;">ENCODER · GNN</div>
+
+        <!-- Original graph -> embedding matrix Z -->
+        <svg width="100%" height="120" viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="e1" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0L5 2.5L0 5z" fill="#94a3b8"/></marker>
+          </defs>
+          <!-- Original graph (solid frame) -->
+          <rect x="2" y="6" width="130" height="92" rx="10" fill="none" stroke="#94a3b8" stroke-width="2.5"/>
+          <g stroke="#94a3b8" stroke-width="3" fill="none">
+            <path d="M32 30L102 30"/><path d="M32 30L67 62"/><path d="M102 30L67 62"/><path d="M67 62L67 86"/>
+          </g>
+          <circle cx="32" cy="30" r="11" fill="#2563eb"/>
+          <circle cx="102" cy="30" r="11" fill="#db2777"/>
+          <circle cx="67" cy="62" r="11" fill="#059669"/>
+          <circle cx="67" cy="86" r="0" fill="#d97706"/>
+          <circle cx="67" cy="88" r="9" fill="#d97706"/>
+          <text x="67" y="116" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor">original (X, A)</text>
+          <!-- GNN arrow -->
+          <path d="M138 52H180" stroke="#94a3b8" stroke-width="3" fill="none" marker-end="url(#e1)"/>
+          <text x="159" y="44" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor">GCN</text>
+          <!-- Z matrix: 4 nodes x 2 dims -->
+          <g>
+            <rect x="188" y="14" width="40" height="22" rx="3" fill="#2563eb" fill-opacity="0.45"/>
+            <rect x="232" y="14" width="40" height="22" rx="3" fill="#2563eb" fill-opacity="0.25"/>
+            <rect x="188" y="40" width="40" height="22" rx="3" fill="#db2777" fill-opacity="0.45"/>
+            <rect x="232" y="40" width="40" height="22" rx="3" fill="#db2777" fill-opacity="0.25"/>
+            <rect x="188" y="66" width="40" height="22" rx="3" fill="#059669" fill-opacity="0.45"/>
+            <rect x="232" y="66" width="40" height="22" rx="3" fill="#059669" fill-opacity="0.25"/>
+            <rect x="188" y="92" width="40" height="22" rx="3" fill="#d97706" fill-opacity="0.45"/>
+            <rect x="232" y="92" width="40" height="22" rx="3" fill="#d97706" fill-opacity="0.25"/>
+            <rect x="184" y="10" width="92" height="108" rx="6" fill="none" stroke="#94a3b8" stroke-width="2"/>
+          </g>
+          <text x="296" y="68" font-size="20" font-weight="700" fill="currentColor" text-anchor="middle">Z</text>
+        </svg>
+
+        <div class="math-block" style="padding: 8px; margin: 0; font-size: 1.2rem;">\(\displaystyle Z=\mathrm{GNN}(X,A)\)</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Inputs \(X\) and \(A\); a GNN (commonly GCN) compresses structure and features into low-dimensional embeddings \(Z\).</div>
+      </div>
+
+      <!-- Arrow 1 → 2 -->
+      <div data-step="2" style="display: flex; justify-content: center; align-self: center;"><span class="arrow arrow-right">→</span></div>
+
+      <!-- Stage 2: Latent space -->
+      <div class="panel panel-accent" data-step="2" style="flex: 1; padding: 14px 16px; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px;">
+        <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; line-height: 1.4; margin: 0;">LATENT SPACE · Node embeddings</div>
+
+        <!-- Points in a 2D latent space -->
+        <svg width="100%" height="120" viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg">
+          <rect x="30" y="6" width="260" height="108" rx="8" fill="none" stroke="#94a3b8" stroke-width="2"/>
+          <path d="M30 114L290 114" stroke="#94a3b8" stroke-width="2"/>
+          <text x="160" y="118" font-size="0" fill="currentColor"> </text>
+          <!-- Cluster of similar nodes 1,2,3 -->
+          <ellipse cx="108" cy="52" rx="56" ry="34" fill="#059669" fill-opacity="0.12" stroke="#059669" stroke-width="2" stroke-dasharray="5 3"/>
+          <circle cx="86" cy="42" r="11" fill="#2563eb"/>
+          <circle cx="128" cy="40" r="11" fill="#db2777"/>
+          <circle cx="108" cy="68" r="11" fill="#059669"/>
+          <!-- Distant node 4 -->
+          <circle cx="238" cy="82" r="11" fill="#d97706"/>
+          <g fill="#ffffff" font-size="16" font-weight="700" text-anchor="middle" dominant-baseline="central">
+            <text x="86" y="42">1</text><text x="128" y="40">2</text><text x="108" y="68">3</text><text x="238" y="82">4</text>
+          </g>
+          <text x="108" y="106" font-size="16" fill="currentColor" text-anchor="middle">similar → close</text>
+          <text x="238" y="52" font-size="16" fill="currentColor" text-anchor="middle">distant</text>
+          <text x="12" y="64" font-size="16" font-weight="700" fill="currentColor" text-anchor="middle">z₂</text>
+        </svg>
+
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Each node is a vector \(z_i\). Embeddings capture structural similarity: related connectivity gives nearby points.</div>
+        <div class="text-accent" style="font-size: 1.05rem; line-height: 1.4; font-weight: 700; margin: 0;">Nodes 1, 2, 3 cluster together; node 4 sits apart.</div>
+      </div>
+
+      <!-- Arrow 2 → 3 -->
+      <div data-step="3" style="display: flex; justify-content: center; align-self: center;"><span class="arrow arrow-right">→</span></div>
+
+      <!-- Stage 3: Decoder -->
+      <div class="panel panel-primary" data-step="3" style="flex: 1; padding: 14px 16px; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px;">
+        <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; line-height: 1.4; margin: 0;">DECODER · Reconstruction</div>
+
+        <!-- ZZ^T heat-map -> predicted graph -->
+        <svg width="100%" height="120" viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="d1" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0L5 2.5L0 5z" fill="#94a3b8"/></marker>
+          </defs>
+          <!-- Predicted adjacency (probabilities as opacity) -->
+          <g>
+            <rect x="6" y="10" width="26" height="26" fill="#8b5cf6" fill-opacity="0.9"/><rect x="34" y="10" width="26" height="26" fill="#8b5cf6" fill-opacity="0.85"/><rect x="62" y="10" width="26" height="26" fill="#8b5cf6" fill-opacity="0.8"/><rect x="90" y="10" width="26" height="26" fill="#8b5cf6" fill-opacity="0.1"/>
+            <rect x="6" y="38" width="26" height="26" fill="#8b5cf6" fill-opacity="0.85"/><rect x="34" y="38" width="26" height="26" fill="#8b5cf6" fill-opacity="0.9"/><rect x="62" y="38" width="26" height="26" fill="#8b5cf6" fill-opacity="0.8"/><rect x="90" y="38" width="26" height="26" fill="#8b5cf6" fill-opacity="0.1"/>
+            <rect x="6" y="66" width="26" height="26" fill="#8b5cf6" fill-opacity="0.8"/><rect x="34" y="66" width="26" height="26" fill="#8b5cf6" fill-opacity="0.8"/><rect x="62" y="66" width="26" height="26" fill="#8b5cf6" fill-opacity="0.9"/><rect x="90" y="66" width="26" height="26" fill="#8b5cf6" fill-opacity="0.6"/>
+            <rect x="6" y="94" width="26" height="22" fill="#8b5cf6" fill-opacity="0.1"/><rect x="34" y="94" width="26" height="22" fill="#8b5cf6" fill-opacity="0.1"/><rect x="62" y="94" width="26" height="22" fill="#8b5cf6" fill-opacity="0.6"/><rect x="90" y="94" width="26" height="22" fill="#8b5cf6" fill-opacity="0.9"/>
+            <rect x="4" y="8" width="114" height="110" fill="none" stroke="#94a3b8" stroke-width="2"/>
+          </g>
+          <text x="61" y="0" font-size="0" fill="currentColor"> </text>
+          <path d="M126 62H160" stroke="#94a3b8" stroke-width="3" fill="none" marker-end="url(#d1)"/>
+          <!-- Predicted graph (dashed frame = reconstructed) -->
+          <rect x="166" y="6" width="150" height="92" rx="10" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-dasharray="6 4"/>
+          <g stroke="#8b5cf6" stroke-width="3" stroke-dasharray="7 4" fill="none">
+            <path d="M196 30L286 30"/><path d="M196 30L241 62"/><path d="M286 30L241 62"/><path d="M241 62L241 86"/>
+          </g>
+          <circle cx="196" cy="30" r="11" fill="#2563eb"/>
+          <circle cx="286" cy="30" r="11" fill="#db2777"/>
+          <circle cx="241" cy="62" r="11" fill="#059669"/>
+          <circle cx="241" cy="88" r="9" fill="#d97706"/>
+          <text x="241" y="116" font-size="16" font-weight="700" text-anchor="middle" fill="#8b5cf6">predicted graph</text>
+          <text x="61" y="116" font-size="0" fill="currentColor"> </text>
+        </svg>
+
+        <div class="math-block" style="padding: 8px; margin: 0; font-size: 1.2rem;">\(\displaystyle \hat A=\sigma(ZZ^{\top})\)</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">\(ZZ^{\top}\): pairwise similarity scores. \(\sigma\): sigmoid turns them into edge probabilities (darker = likelier).</div>
+      </div>
+    </div>
+
+    <!-- Row 2: training objective + applications -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Training objective -->
+      <div class="panel panel-accent" data-step="4" style="flex: 1.6; padding: 10px 16px; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; border: 2px dashed #d97706;">
+        <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; line-height: 1.4; margin: 0;">Reconstruction Loss</div>
+        <div class="math-block" style="padding: 6px; margin: 0; font-size: 1.1rem;">\(\displaystyle L=-\sum_{ij}\big[A_{ij}\log\hat A_{ij}+(1-A_{ij})\log(1-\hat A_{ij})\big]\)</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Compare \(\hat A\) with \(A\); optimize encoder and decoder. Binary cross-entropy, with negative sampling for missing edges.</div>
+      </div>
+
+      <!-- Applications -->
+      <div class="panel panel-primary" data-step="5" style="flex: 1; padding: 10px 16px; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px;">
+        <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; line-height: 1.4; margin: 0;">Applications</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;"><strong>Link prediction:</strong> estimate missing or future relationships.</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;"><strong>Graph clustering:</strong> group nodes with similar embeddings.</div>
+      </div>
+    </div>
+
+    <!-- Bottom takeaway -->
+    <div class="quote-block" data-step="6" style="flex: none; padding: 8px 20px; margin: 0; font-size: 1.05rem; line-height: 1.4; text-align: center;">
+      GAEs learn useful graph representations by encoding nodes into a latent space and reconstructing their relationships.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

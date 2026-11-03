@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Limitations of Conventional Neural Architectures</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+  </style>
+</head>
+<body>
+<!-- BUDGET: tier S, B = 528px = row1 ~305 + gap 16 + row2 ~140 + gap 16 + strip ~50 = 527px (flex rows absorb the remainder, ~96%) -->
+
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div style="margin-bottom: 20px;">
+    <div class="title" style="font-size: 2.75rem; margin: 0 0 4px 0;">Limitations of Conventional Neural Architectures</div>
+    <div class="subtitle" style="font-size: 1.5rem; margin: 0;">MLPs, CNNs and Transformers are designed around vectors, grids and sequences</div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <!-- Row 1: the two limitations -->
+    <div style="flex: 2.2; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Left panel: temporal dynamics -->
+      <div class="panel panel-primary" data-step="1" style="flex: 1; padding: 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">Temporal dynamics</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin-bottom: 6px;">
+          Frame-based processing computes even without new events, loses exact event timing and wastes cost on sparse, asynchronous signals.
+        </div>
+        <div class="math-block" style="padding: 12px; margin: 0 0 6px 0; font-size: 1.2rem;">
+          \(\displaystyle \tau\frac{dU(t)}{dt} = -(U(t)-U_{rest}) + R\,I(t)\)
+        </div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin-bottom: 6px;">
+          \(U\): membrane potential, \(U_{rest}\): resting potential, \(I\): input current, \(R\): membrane resistance, \(\tau\): time constant (anticipates LIF).
+        </div>
+        <div class="text-primary" style="font-size: 1.05rem; line-height: 1.4; font-weight: 700;">
+          Neurons keep an internal state that evolves over time.
+        </div>
+      </div>
+
+      <!-- Right panel: relational structure -->
+      <div class="panel panel-accent" data-step="2" style="flex: 1; padding: 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">Relational structure</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin-bottom: 6px;">
+          Social networks, molecules, roads, knowledge graphs: entities plus relations that standard models may not exploit explicitly.
+        </div>
+        <div class="math-block" style="padding: 12px; margin: 0 0 6px 0; font-size: 1.2rem;">
+          \(\displaystyle f(PX,\,PAP^{\top}) = P\,f(X,A)\)
+        </div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin-bottom: 6px;">
+          \(X\): node features, \(A\): adjacency matrix, \(P\): permutation matrix, \(f\): graph function. Reordering nodes reorders outputs accordingly.
+        </div>
+        <div class="text-accent" style="font-size: 1.05rem; line-height: 1.4; font-weight: 700;">
+          Permutation equivariance: a core property of GNNs.
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: architecture map -->
+    <div class="panel" data-step="3" style="flex: 1.1; padding: 12px 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+      <div style="display: grid; grid-template-columns: 220px 1fr 1fr; gap: 8px; align-items: stretch; font-size: 1.05rem; line-height: 1.4;">
+
+        <!-- Axis header -->
+        <div class="text-muted" style="padding: 4px 10px; font-weight: 700;">Dynamics ↓ / Data →</div>
+        <div class="text-primary" style="padding: 4px 10px; font-weight: 700; text-align: center;">Regular data</div>
+        <div class="text-accent" style="padding: 4px 10px; font-weight: 700; text-align: center;">Graph data</div>
+
+        <!-- Static row -->
+        <div class="text-primary" style="padding: 4px 10px; font-weight: 700; display: flex; align-items: center;">Static dynamics</div>
+        <div class="panel panel-primary" style="padding: 4px 10px; margin: 0; text-align: center;">MLP, CNN, Transformers</div>
+        <div class="panel panel-accent" style="padding: 4px 10px; margin: 0; text-align: center;">GNN</div>
+
+        <!-- Spiking row -->
+        <div class="text-accent" style="padding: 4px 10px; font-weight: 700; display: flex; align-items: center;">Spiking dynamics</div>
+        <div class="panel panel-primary" style="padding: 4px 10px; margin: 0; text-align: center;">SNN</div>
+        <div class="panel panel-accent" style="padding: 4px 10px; margin: 0; text-align: center;">Spiking GNN</div>
+      </div>
+    </div>
+
+    <!-- Final strip: Spiking GNNs -->
+    <div class="quote-block" data-step="4" style="flex: none; padding: 12px 20px; margin: 0; font-size: 1.05rem; line-height: 1.4;">
+      <strong>Spiking GNNs:</strong> spiking neurons process node-level information, combining message passing with temporal dynamics. SNNs and GNNs address different challenges and are not competing alternatives.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
