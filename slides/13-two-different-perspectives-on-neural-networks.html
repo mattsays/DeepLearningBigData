@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Two Different Perspectives on Neural Networks</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+  </style>
+</head>
+<body>
+<!-- BUDGET: tier S, B = 528px = row1 (two panels + central contrast, ~400) + gap 16 + takeaway strip ~64 = ~480px (91%); flex row absorbs the remainder -->
+
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div style="margin-bottom: 20px;">
+    <div class="title" style="font-size: 2.75rem; margin: 0 0 4px 0;">Two Different Perspectives on Neural Networks</div>
+    <div class="subtitle" style="font-size: 1.5rem; margin: 0;">Temporal Dynamics vs. Relational Structure</div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <!-- Row 1: SNN | central contrast | GNN -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Left panel: SNN -->
+      <div class="panel panel-accent" data-step="1" style="flex: 1; padding: 16px 20px; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
+        <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; line-height: 1.4; margin: 0;">Spiking Neural Networks</div>
+        <div style="font-size: 1.2rem; line-height: 1.4; font-weight: 700; color: #d97706; margin: 0;">When and how information evolves over time</div>
+
+        <!-- Network + membrane potential + spike train -->
+        <svg width="100%" height="190" viewBox="0 0 480 190" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="sn1" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0L5 2.5L0 5z" fill="#94a3b8"/></marker>
+          </defs>
+
+          <!-- Small spiking network -->
+          <g stroke="#94a3b8" stroke-width="2" fill="none">
+            <path d="M32 24L88 14" marker-end="url(#sn1)"/><path d="M32 24L88 50" marker-end="url(#sn1)"/>
+            <path d="M32 66L88 50" marker-end="url(#sn1)"/><path d="M32 66L88 86" marker-end="url(#sn1)"/>
+            <path d="M104 14L152 50" marker-end="url(#sn1)"/><path d="M104 50L152 50" marker-end="url(#sn1)"/><path d="M104 86L152 50" marker-end="url(#sn1)"/>
+          </g>
+          <g fill="#d97706">
+            <circle cx="22" cy="24" r="10"/><circle cx="22" cy="66" r="10"/>
+            <circle cx="96" cy="14" r="10"/><circle cx="96" cy="50" r="10"/><circle cx="96" cy="86" r="10"/>
+            <circle cx="162" cy="50" r="12"/>
+          </g>
+          <text x="22" y="108" font-size="16" fill="currentColor" text-anchor="middle">in</text>
+          <text x="162" y="76" font-size="16" fill="currentColor" text-anchor="middle">out</text>
+
+          <!-- Membrane potential curve with threshold and spikes -->
+          <path d="M200 10V100H470" stroke="#94a3b8" stroke-width="2" fill="none"/>
+          <text x="204" y="22" font-size="16" fill="currentColor">U(t)</text>
+          <path d="M200 38H470" stroke="#2563eb" stroke-width="2" stroke-dasharray="6 4" fill="none"/>
+          <text x="470" y="32" font-size="16" font-weight="700" fill="#2563eb" text-anchor="end">threshold</text>
+          <path d="M204 92 L232 74 L256 82 L282 50 L296 38 L296 10 L300 92 L318 80 L346 62 L366 68 L390 38 L398 38 L398 10 L402 92 L424 82 L448 70 L466 74" stroke="#d97706" stroke-width="3" fill="none" stroke-linejoin="round"/>
+
+          <!-- Spike train -->
+          <path d="M200 160H470" stroke="#94a3b8" stroke-width="2" fill="none"/>
+          <g stroke="#1e3a8a" stroke-width="3">
+            <path d="M296 160V132"/><path d="M398 160V132"/>
+            <path d="M232 160V140" opacity="0.4"/><path d="M340 160V140" opacity="0.4"/><path d="M440 160V140" opacity="0.4"/>
+          </g>
+          <text x="200" y="182" font-size="16" fill="currentColor">spike train: timing and frequency</text>
+        </svg>
+
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Neurons communicate through discrete spikes, integrating inputs over time; activity evolves dynamically.</div>
+        <div class="text-accent" style="font-size: 1.05rem; line-height: 1.4; font-weight: 700; margin: 0;">Information lives in spike timing and temporal patterns.</div>
+      </div>
+
+      <!-- Central contrast -->
+      <div data-step="2" style="flex: none; width: 96px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; text-align: center;">
+        <div style="font-size: 1.05rem; line-height: 1.4; font-weight: 700; color: #d97706; margin: 0;">SNNs</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">temporal dimension</div>
+        <div style="font-size: 1.6rem; font-weight: 700; line-height: 1; margin: 0;">vs</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; font-weight: 700; color: #2563eb; margin: 0;">GNNs</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">relational dimension</div>
+      </div>
+
+      <!-- Right panel: GNN -->
+      <div class="panel panel-primary" data-step="3" style="flex: 1; padding: 16px 20px; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
+        <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; line-height: 1.4; margin: 0;">Graph Neural Networks</div>
+        <div style="font-size: 1.2rem; line-height: 1.4; font-weight: 700; color: #2563eb; margin: 0;">How information is organized through relationships</div>
+
+        <!-- Irregular graph with messages towards a highlighted node -->
+        <svg width="100%" height="190" viewBox="0 0 480 190" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="gn1" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0L5 2.5L0 5z" fill="#2563eb"/></marker>
+          </defs>
+          <!-- Plain edges -->
+          <g stroke="#94a3b8" stroke-width="2" fill="none">
+            <path d="M50 40L110 150"/><path d="M50 40L130 30"/><path d="M130 30L110 150"/>
+            <path d="M370 30L430 80"/><path d="M430 80L400 150"/><path d="M370 30L400 150"/><path d="M400 150L320 172"/><path d="M110 150L320 172"/>
+          </g>
+          <!-- Messages flowing into the central node -->
+          <g stroke="#2563eb" stroke-width="3.5" fill="none">
+            <path d="M146 44L214 84" marker-end="url(#gn1)"/>
+            <path d="M118 148L206 108" marker-end="url(#gn1)"/>
+            <path d="M356 42L276 84" marker-end="url(#gn1)"/>
+            <path d="M310 162L254 112" marker-end="url(#gn1)"/>
+          </g>
+          <!-- Highlighted target and its neighbors -->
+          <circle cx="240" cy="96" r="26" fill="none" stroke="#d97706" stroke-width="3" stroke-dasharray="5 3"/>
+          <g fill="#94a3b8">
+            <circle cx="50" cy="40" r="12"/><circle cx="430" cy="80" r="12"/><circle cx="400" cy="150" r="12"/>
+          </g>
+          <g fill="#2563eb">
+            <circle cx="132" cy="30" r="13"/><circle cx="110" cy="150" r="13"/><circle cx="370" cy="30" r="13"/><circle cx="320" cy="172" r="13"/>
+          </g>
+          <circle cx="240" cy="96" r="16" fill="#1e3a8a"/>
+          <text x="240" y="96" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="central">v</text>
+          <text x="240" y="150" font-size="16" fill="currentColor" text-anchor="middle">messages from neighbors</text>
+        </svg>
+
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Nodes and edges; each node has features and a neighborhood. Messages are aggregated to update representations.</div>
+        <div class="text-primary" style="font-size: 1.05rem; line-height: 1.4; font-weight: 700; margin: 0;">Information is organized by connectivity.</div>
+      </div>
+    </div>
+
+    <!-- Bottom takeaway -->
+    <div class="quote-block" data-step="4" style="flex: none; padding: 8px 20px; margin: 0; font-size: 1.05rem; line-height: 1.4; text-align: center;">
+      SNNs introduce temporal dynamics into neural computation, while GNNs introduce relational structure into data representation.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

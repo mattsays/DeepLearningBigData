@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GraphSAGE and Graph Attention Networks</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+  </style>
+</head>
+<body>
+<!-- BUDGET: tier S, B = 528px = row1 (two 584px panels) ~318 + gap 16 + comparison table ~110 + gap 16 + takeaway strip ~44 = ~504px (95%); flex rows absorb the remainder -->
+
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div style="margin-bottom: 20px;">
+    <div class="title" style="font-size: 2.75rem; margin: 0 0 4px 0;">GraphSAGE and Graph Attention Networks</div>
+    <div class="subtitle" style="font-size: 1.5rem; margin: 0;">Two alternative strategies for neighborhood aggregation</div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <!-- Row 1: GraphSAGE and GAT -->
+    <div style="flex: 2.9; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Panel 1: GraphSAGE -->
+      <div class="panel panel-primary" data-step="1" style="flex: 1; padding: 14px 18px; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin: 0;">
+          <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; line-height: 1.4; margin: 0;">GraphSAGE</div>
+          <div class="text-muted" style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Graph Sample and Aggregate</div>
+        </div>
+
+        <!-- Central node, 6 neighbors, 3 sampled -> AGG -> concat with self -->
+        <svg width="100%" height="128" viewBox="0 0 548 128" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="sg" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0L5 2.5L0 5z" fill="#2563eb"/></marker>
+            <marker id="sgn" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0L5 2.5L0 5z" fill="#94a3b8"/></marker>
+          </defs>
+          <!-- Non-sampled neighbors (faded, dashed) -->
+          <g stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 4" opacity="0.5" fill="none">
+            <path d="M78 64L40 20"/><path d="M78 64L40 108"/><path d="M78 64L118 14"/>
+          </g>
+          <g fill="#94a3b8" opacity="0.5">
+            <circle cx="30" cy="14" r="10"/><circle cx="30" cy="114" r="10"/><circle cx="124" cy="8" r="10"/>
+          </g>
+          <!-- Sampled neighbors (solid) -->
+          <g stroke="#2563eb" stroke-width="3" fill="none">
+            <path d="M44 48L66 58"/><path d="M48 84L68 72"/><path d="M122 100L96 76"/>
+          </g>
+          <circle cx="36" cy="44" r="12" fill="#2563eb"/>
+          <circle cx="42" cy="90" r="12" fill="#2563eb"/>
+          <circle cx="128" cy="106" r="12" fill="#2563eb"/>
+          <!-- Central node -->
+          <circle cx="86" cy="66" r="16" fill="#059669"/>
+          <text x="86" y="66" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="central">v</text>
+          <!-- Sampled messages into AGG -->
+          <path d="M150 60L200 60" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#sg)"/>
+          <rect x="204" y="38" width="96" height="44" rx="8" fill="#2563eb" fill-opacity="0.22" stroke="#2563eb" stroke-width="2.5"/>
+          <text x="252" y="54" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor">AGG</text>
+          <text x="252" y="73" font-size="16" text-anchor="middle" fill="currentColor">mean / pool / LSTM</text>
+          <!-- Self representation arrow into concat -->
+          <path d="M102 80L330 100" stroke="#059669" stroke-width="3" fill="none" marker-end="url(#sgn)"/>
+          <path d="M300 60L338 74" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#sg)"/>
+          <!-- Concatenation -->
+          <rect x="342" y="48" width="86" height="26" rx="4" fill="#2563eb" fill-opacity="0.35" stroke="#2563eb" stroke-width="2"/>
+          <rect x="342" y="78" width="86" height="26" rx="4" fill="#059669" fill-opacity="0.35" stroke="#059669" stroke-width="2"/>
+          <text x="385" y="62" font-size="16" text-anchor="middle" dominant-baseline="central" fill="currentColor">AGG(h_u)</text>
+          <text x="385" y="92" font-size="16" text-anchor="middle" dominant-baseline="central" fill="currentColor">h_v</text>
+          <text x="385" y="124" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor">concat ||</text>
+          <!-- Transform to new embedding -->
+          <path d="M430 76L452 76" stroke="#94a3b8" stroke-width="3" fill="none" marker-end="url(#sgn)"/>
+          <rect x="456" y="50" width="90" height="52" rx="8" fill="#8b5cf6" fill-opacity="0.22" stroke="#8b5cf6" stroke-width="2.5"/>
+          <text x="501" y="68" font-size="16" font-weight="700" text-anchor="middle" fill="currentColor">σ(W · )</text>
+          <text x="501" y="88" font-size="16" text-anchor="middle" fill="currentColor">new h_v</text>
+          <!-- Sampling label -->
+          <text x="80" y="124" font-size="16" fill="currentColor" text-anchor="middle">3 of 6 sampled</text>
+        </svg>
+
+        <div class="math-block" style="padding: 8px; margin: 0; font-size: 1.1rem;">\(\displaystyle h_v^{(k)}=\sigma\big(W^{(k)}\cdot[\,h_v^{(k-1)}\,\|\,\mathrm{AGG}(\{h_u^{(k-1)}\})\,]\big)\)</div>
+
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Samples a fixed-size neighbor subset: scalable. Learns aggregators instead of per-node embeddings.</div>
+        <div class="text-primary" style="font-size: 1.05rem; line-height: 1.4; font-weight: 700; margin: 0;">Inductive: embeds unseen nodes from their features and neighborhoods.</div>
+      </div>
+
+      <!-- Panel 2: GAT -->
+      <div class="panel panel-accent" data-step="2" style="flex: 1; padding: 14px 18px; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin: 0;">
+          <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; line-height: 1.4; margin: 0;">Graph Attention Network (GAT)</div>
+        </div>
+
+        <!-- Central node with all neighbors; edge thickness = attention -->
+        <svg width="100%" height="128" viewBox="0 0 548 128" xmlns="http://www.w3.org/2000/svg">
+          <!-- Edges with different thickness -->
+          <g fill="none" stroke="#db2777">
+            <path d="M44 38L72 56" stroke-width="3" opacity="0.7"/>
+            <path d="M42 94L72 76" stroke-width="2" opacity="0.5"/>
+            <path d="M120 106L100 78" stroke-width="7"/>
+            <path d="M126 24L100 54" stroke-width="1.5" opacity="0.45"/>
+          </g>
+          <circle cx="32" cy="32" r="12" fill="#94a3b8"/>
+          <circle cx="32" cy="100" r="12" fill="#94a3b8"/>
+          <circle cx="128" cy="110" r="12" fill="#2563eb"/>
+          <circle cx="132" cy="18" r="12" fill="#94a3b8"/>
+          <circle cx="86" cy="66" r="16" fill="#059669"/>
+          <text x="86" y="66" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="central">i</text>
+          <!-- Attention labels -->
+          <g font-size="16" font-weight="700" fill="currentColor">
+            <text x="6" y="64">0.15</text>
+            <text x="6" y="124">0.05</text>
+            <text x="148" y="98">0.73</text>
+            <text x="150" y="36">0.07</text>
+          </g>
+          <!-- Pipeline: scores -> softmax -> weighted sum -->
+          <g stroke-width="2.5">
+            <rect x="214" y="6" width="330" height="34" rx="8" fill="#db2777" fill-opacity="0.22" stroke="#db2777"/>
+            <rect x="214" y="47" width="330" height="34" rx="8" fill="#d97706" fill-opacity="0.22" stroke="#d97706"/>
+            <rect x="214" y="88" width="330" height="34" rx="8" fill="#8b5cf6" fill-opacity="0.22" stroke="#8b5cf6"/>
+          </g>
+          <g fill="#94a3b8">
+            <path d="M373 41L379 46L385 41z"/><path d="M373 82L379 87L385 82z"/>
+          </g>
+          <g font-size="16" fill="currentColor" dominant-baseline="central">
+            <text x="226" y="23"><tspan font-weight="700">1</tspan>  Learn scores e_ij from h_i, h_j</text>
+            <text x="226" y="64"><tspan font-weight="700">2</tspan>  Softmax over the neighborhood</text>
+            <text x="226" y="105"><tspan font-weight="700">3</tspan>  Weighted sum of neighbors, then σ</text>
+          </g>
+          <text x="180" y="66" font-size="16" fill="currentColor" text-anchor="middle" display="none"></text>
+        </svg>
+
+        <div class="math-block" style="padding: 6px 8px; margin: 0; font-size: 1.05rem;">\(\displaystyle e_{ij}=\mathrm{LeakyReLU}(a^{\top}[Wh_i\,\|\,Wh_j])\;\;\;\alpha_{ij}=\frac{e^{e_{ij}}}{\sum_k e^{e_{ik}}}\;\;\;h_i'=\sigma\Big(\sum_j\alpha_{ij}Wh_j\Big)\)</div>
+
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">\(\alpha_{ij}\): learned weight from neighbor \(j\) to node \(i\). Multi-head attention combines several mechanisms.</div>
+        <div class="text-accent" style="font-size: 1.05rem; line-height: 1.4; font-weight: 700; margin: 0;">Example: e = (1.0, 0.0) gives α ≈ (0.73, 0.27); the higher score contributes more.</div>
+      </div>
+    </div>
+
+    <!-- Row 2: architecture comparison table -->
+    <div class="panel" data-step="3" style="flex: 1; padding: 8px 16px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+      <div style="display: grid; grid-template-columns: 150px 1fr 1fr; column-gap: 12px; row-gap: 4px; align-items: center; font-size: 1.05rem; line-height: 1.4;">
+        <div class="text-muted" style="font-weight: 700;">Architecture</div>
+        <div class="text-muted" style="font-weight: 700;">Neighbor aggregation</div>
+        <div class="text-muted" style="font-weight: 700;">Main advantage</div>
+
+        <div class="text-primary" style="font-weight: 700;">GCN</div>
+        <div>Fixed normalized weights</div>
+        <div>Simplicity and efficiency</div>
+
+        <div style="font-weight: 700; color: #2563eb;">GraphSAGE</div>
+        <div>Sampled neighborhood</div>
+        <div>Scalability and inductive learning</div>
+
+        <div class="text-accent" style="font-weight: 700;">GAT</div>
+        <div>Learned attention weights</div>
+        <div>Adaptive neighbor importance</div>
+      </div>
+    </div>
+
+    <!-- Bottom takeaway -->
+    <div class="quote-block" data-step="4" style="flex: none; padding: 8px 20px; margin: 0; font-size: 1.05rem; line-height: 1.4; text-align: center;">
+      All three architectures use message passing, but differ in how they select and weight neighborhood information.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

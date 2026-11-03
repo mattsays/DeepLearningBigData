@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>References – Spiking Neural Networks</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+  </style>
+</head>
+<body>
+<!-- BUDGET: tier S/M, B = 528px = three reference cards stacked (flex: 1 each, ~165px natural: 3 x 160 + 2 gaps x 16 = 512px, 97% absorbed by flex); full width 1184px, inner width 1120px -->
+
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div style="margin-bottom: 20px;">
+    <div class="title" style="font-size: 2.75rem; margin: 0 0 4px 0;">References – Spiking Neural Networks</div>
+    <div class="subtitle" style="font-size: 1.5rem; margin: 0;">Foundational Models and Learning Methods</div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <!-- Reference 1: Foundations -->
+    <div class="panel panel-accent" data-step="1" style="flex: 1; padding: 14px 24px; margin: 0; display: flex; align-items: center; gap: 20px; border-left: 6px solid #d97706;">
+      <div style="flex: none; width: 56px; height: 56px; border-radius: 50%; background: #d97706; color: #ffffff; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center;">1</div>
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 1.2rem; font-weight: 700; line-height: 1.4; color: #d97706; margin: 0;">Foundations of Spiking Neural Networks</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Maass, W. <strong style="color: #d97706;">(1997).</strong> <strong>“Networks of Spiking Neurons: The Third Generation of Neural Network Models.”</strong> <em>Neural Networks</em>, 10(9), 1659–1671.</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;"><strong>Contribution:</strong> introduced the computational perspective of spiking neurons as a third generation of neural network models.</div>
+        <div class="text-muted" style="font-size: 1rem; line-height: 1.4; margin: 0;">DOI: https://doi.org/10.1016/S0893-6080(97)00011-7</div>
+      </div>
+    </div>
+
+    <!-- Reference 2: Neuron models -->
+    <div class="panel panel-accent" data-step="2" style="flex: 1; padding: 14px 24px; margin: 0; display: flex; align-items: center; gap: 20px; border-left: 6px solid #d97706;">
+      <div style="flex: none; width: 56px; height: 56px; border-radius: 50%; background: #d97706; color: #ffffff; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center;">2</div>
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 1.2rem; font-weight: 700; line-height: 1.4; color: #d97706; margin: 0;">Neuron Models and Dynamics</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Gerstner, W., Kistler, W. M., Naud, R., &amp; Paninski, L. <strong style="color: #d97706;">(2014).</strong> <strong><em>Neuronal Dynamics: From Single Neurons to Networks and Models of Cognition.</em></strong> Cambridge University Press.</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;"><strong>Contribution:</strong> comprehensive reference on biological neuron models, integrate-and-fire dynamics, and spiking neural networks.</div>
+        <div class="text-muted" style="font-size: 1rem; line-height: 1.4; margin: 0;">Online book: https://neuronaldynamics.epfl.ch/</div>
+      </div>
+    </div>
+
+    <!-- Reference 3: Learning -->
+    <div class="panel panel-accent" data-step="3" style="flex: 1; padding: 14px 24px; margin: 0; display: flex; align-items: center; gap: 20px; border-left: 6px solid #d97706;">
+      <div style="flex: none; width: 56px; height: 56px; border-radius: 50%; background: #d97706; color: #ffffff; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center;">3</div>
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 1.2rem; font-weight: 700; line-height: 1.4; color: #d97706; margin: 0;">Learning in Spiking Neural Networks</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Neftci, E. O., Mostafa, H., &amp; Zenke, F. <strong style="color: #d97706;">(2019).</strong> <strong>“Surrogate Gradient Learning in Spiking Neural Networks: Bringing the Power of Gradient-Based Optimization to Spiking Neural Networks.”</strong> <em>IEEE Signal Processing Magazine</em>, 36(6), 51–63.</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;"><strong>Contribution:</strong> explains surrogate gradients as a way to train SNNs with gradient-based optimization despite the non-differentiability of spike generation.</div>
+        <div class="text-muted" style="font-size: 1rem; line-height: 1.4; margin: 0;">DOI: https://doi.org/10.1109/MSP.2019.2931595</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
