@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Limitation: Over-Squashing & Long-Range Trade-off</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-3px); } 50% { transform: translateY(3px); } }
+
+    /* --- ANIMATION 1: Exponential Tree Wave (1 -> 2 -> 4 -> 8) --- */
+    .node-dot { width: 18px; height: 18px; border-radius: 50%; transition: transform 0.3s; }
+    .hop-0 { background: #ef4444; animation: wave-pulse 2.4s infinite 0.0s; }
+    .hop-1 { background: #f59e0b; animation: wave-pulse 2.4s infinite 0.4s; }
+    .hop-2 { background: #22c55e; animation: wave-pulse 2.4s infinite 0.8s; }
+    .hop-3 { background: #3b82f6; animation: wave-pulse 2.4s infinite 1.2s; }
+    @keyframes wave-pulse {
+      0%, 100% { transform: scale(0.85); opacity: 0.45; }
+      30% { transform: scale(1.22); opacity: 1; box-shadow: 0 0 10px currentColor; }
+      60% { transform: scale(0.95); opacity: 0.75; }
+    }
+
+    /* --- ANIMATION 2: Structural Bottleneck Congestion & Bridge Stress --- */
+    .cluster-left { animation: emit-signal 2s ease-in-out infinite; }
+    .cluster-right { animation: emit-signal 2s ease-in-out infinite 1s; }
+    @keyframes emit-signal {
+      0%, 100% { transform: scale(1); filter: brightness(1); }
+      40% { transform: scale(1.08); filter: brightness(1.25); }
+    }
+    .edge-pipe {
+      position: relative; width: 28px; height: 4px; background: #cbd5e1;
+      overflow: hidden; border-radius: 2px; flex: none;
+    }
+    .edge-pipe::after {
+      content: ""; position: absolute; top: 0; left: -12px; width: 12px; height: 100%;
+      background: #ef4444; border-radius: 2px;
+      animation: packet-left 1.2s linear infinite;
+    }
+    .edge-pipe.reverse::after {
+      background: #22c55e;
+      animation: packet-right 1.2s linear infinite;
+    }
+    @keyframes packet-left { 0% { left: -12px; } 100% { left: 100%; } }
+    @keyframes packet-right { 0% { left: 100%; } 100% { left: -12px; } }
+
+    .bridge-node {
+      width: 34px; height: 34px; border-radius: 50%; background: #ef4444;
+      flex: none; position: relative; z-index: 2;
+      animation: bottleneck-strain 1.2s ease-in-out infinite;
+    }
+    @keyframes bottleneck-strain {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      50% { transform: scale(0.82) scaleY(1.18); background: #dc2626; box-shadow: 0 0 0 9px rgba(239, 68, 68, 0); }
+    }
+
+    /* --- ANIMATION 3: Vector Squashing & Signal Loss --- */
+    .msg-row {
+      display: flex; gap: 4px;
+      animation: funnel-squeeze 2.6s ease-in-out infinite;
+    }
+    @keyframes funnel-squeeze {
+      0%, 15% { transform: translateY(0) scaleX(1); opacity: 1; }
+      55% { transform: translateY(14px) scaleX(0.45) scaleY(0.6); opacity: 0.35; }
+      85%, 100% { transform: translateY(0) scaleX(1); opacity: 1; }
+    }
+    .vec-slot {
+      width: 38px; height: 24px; border: 2px solid #334155;
+      animation: vector-overload 2.6s ease-in-out infinite;
+    }
+    @keyframes vector-overload {
+      0%, 30% { background: #e2e8f0; transform: scaleY(1); }
+      55%, 75% { background: #64748b; border-color: #ef4444; transform: scaleY(0.86) scaleX(1.04); }
+      100% { background: #e2e8f0; transform: scaleY(1); }
+    }
+  </style>
+</head>
+<body>
+<!-- BUDGET: tier S, B = 528px. Row 1 (239px) + Row 2 (138px) + Strip (65px) + gaps (32px) = 474px (89%) -->
+
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div style="margin-bottom: 18px;">
+    <div class="title" style="font-size: 2.65rem; margin: 0 0 4px 0;">Limitation: Over-Squashing &amp; Long-Range Dilemma</div>
+    <div class="subtitle" style="font-size: 1.4rem; margin: 0;">Why high-order feature fusion fails: exponential K-hop messages crushed into fixed-size vectors</div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <!-- Row 1: neighborhood growth -> bottleneck -> compression -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Block 1: neighborhood explosion (tree 1 - 2 - 4 - 8) -->
+      <div class="panel panel-primary" data-step="1" style="flex: 1; padding: 18px 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.35rem; font-weight: 700; margin-bottom: 8px;">1. Exponential K-Hop Growth</div>
+        <div style="height: 98px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px;">
+          <div style="display: flex; gap: 6px;">
+            <div class="node-dot hop-0"></div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <div class="node-dot hop-1"></div>
+            <div class="node-dot hop-1"></div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <div class="node-dot hop-2"></div>
+            <div class="node-dot hop-2"></div>
+            <div class="node-dot hop-2"></div>
+            <div class="node-dot hop-2"></div>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <div class="node-dot hop-3"></div>
+            <div class="node-dot hop-3"></div>
+            <div class="node-dot hop-3"></div>
+            <div class="node-dot hop-3"></div>
+            <div class="node-dot hop-3"></div>
+            <div class="node-dot hop-3"></div>
+            <div class="node-dot hop-3"></div>
+            <div class="node-dot hop-3"></div>
+          </div>
+        </div>
+        <div style="font-size: 1.02rem; line-height: 1.38; margin-bottom: 0;">To reach distant nodes, receptive fields expand exponentially with layers \(K\) (\(1 \to 2 \to 4 \to 8\)).</div>
+      </div>
+
+      <div data-step="2" style="display: flex; justify-content: center; align-self: center;"><span class="arrow arrow-right">→</span></div>
+
+      <!-- Block 2: structural bottleneck (two clusters joined by one bridge node) -->
+      <div class="panel panel-accent" data-step="2" style="flex: 1; padding: 18px 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-accent" style="font-size: 1.35rem; font-weight: 700; margin-bottom: 8px;">2. Topological Bottleneck</div>
+        <div style="height: 98px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+          <!-- Left cluster -->
+          <div class="cluster-left" style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; gap: 6px;">
+              <div style="width: 20px; height: 20px; border-radius: 50%; background: #3b82f6;"></div>
+              <div style="width: 20px; height: 20px; border-radius: 50%; background: #3b82f6;"></div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <div style="width: 20px; height: 20px; border-radius: 50%; background: #3b82f6;"></div>
+              <div style="width: 20px; height: 20px; border-radius: 50%; background: #3b82f6;"></div>
+            </div>
+          </div>
+          <!-- Animated incoming edge -->
+          <div class="edge-pipe"></div>
+          <!-- Pulsing Bridge node -->
+          <div class="bridge-node" title="Structural choke point"></div>
+          <!-- Animated incoming edge -->
+          <div class="edge-pipe reverse"></div>
+          <!-- Right cluster -->
+          <div class="cluster-right" style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; gap: 6px;">
+              <div style="width: 20px; height: 20px; border-radius: 50%; background: #22c55e;"></div>
+              <div style="width: 20px; height: 20px; border-radius: 50%; background: #22c55e;"></div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <div style="width: 20px; height: 20px; border-radius: 50%; background: #22c55e;"></div>
+              <div style="width: 20px; height: 20px; border-radius: 50%; background: #22c55e;"></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size: 1.02rem; line-height: 1.38; margin-bottom: 0;">Distant subgraphs must funnel massive traffic through narrow structural bridges (red choke point).</div>
+      </div>
+
+      <div data-step="3" style="display: flex; justify-content: center; align-self: center;"><span class="arrow arrow-right">→</span></div>
+
+      <!-- Block 3: compression into a fixed-size vector -->
+      <div class="panel panel-primary" data-step="3" style="flex: 1; padding: 18px 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.35rem; font-weight: 700; margin-bottom: 8px;">3. Fixed-Vector Compression</div>
+        <div style="height: 98px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px;">
+          <div class="msg-row">
+            <div style="width: 17px; height: 17px; border-radius: 3px; background: #ef4444;"></div>
+            <div style="width: 17px; height: 17px; border-radius: 3px; background: #f59e0b;"></div>
+            <div style="width: 17px; height: 17px; border-radius: 3px; background: #eab308;"></div>
+            <div style="width: 17px; height: 17px; border-radius: 3px; background: #22c55e;"></div>
+            <div style="width: 17px; height: 17px; border-radius: 3px; background: #14b8a6;"></div>
+            <div style="width: 17px; height: 17px; border-radius: 3px; background: #3b82f6;"></div>
+            <div style="width: 17px; height: 17px; border-radius: 3px; background: #8b5cf6;"></div>
+            <div style="width: 17px; height: 17px; border-radius: 3px; background: #ec4899;"></div>
+          </div>
+          <div class="arrow-down" style="font-size: 1.15rem; line-height: 1; color: #ef4444; font-weight: 700;">↓ squash ↓</div>
+          <div style="display: flex; gap: 0;">
+            <div class="vec-slot"></div>
+            <div class="vec-slot"></div>
+            <div class="vec-slot"></div>
+            <div class="vec-slot"></div>
+          </div>
+        </div>
+        <div style="font-size: 1.02rem; line-height: 1.38; margin-bottom: 0;">Distinct node signals get crushed into one fixed \(d\)-dimensional embedding, erasing fine details.</div>
+      </div>
+    </div>
+
+    <!-- Row 2: Structural Cause & The "Short Blanket" Trade-off -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Cause & Signal Loss -->
+      <div class="panel panel-accent" data-step="4" style="flex: 1; padding: 18px 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-accent" style="font-size: 1.35rem; font-weight: 700; margin-bottom: 6px;">Information Bottleneck &amp; Signal Loss</div>
+        <div style="font-size: 1.02rem; line-height: 1.42; margin-bottom: 0;">
+          While \(K\)-hop volume scales as \(\mathcal{O}(b^K)\), node memory stays fixed at \(\mathbb{R}^d\). Distant messages suffer severe <strong>lossy compression</strong> and vanishing Jacobian sensitivity.
+        </div>
+      </div>
+
+      <!-- The "Short Blanket" Dilemma (Over-smoothing vs Over-squashing) -->
+      <div class="panel panel-primary" data-step="5" style="flex: 1; padding: 18px 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.35rem; font-weight: 700; margin-bottom: 6px;">High-Order Fusion Trade off</div>
+        <div style="font-size: 1.02rem; line-height: 1.42; margin-bottom: 0;">
+          Stacking deeper layers (\(K \uparrow\)) for long-range reach triggers a double trap: <strong>Over-squashing</strong> (choked distant signals) and <strong>Over-smoothing</strong> (all nodes converge to identical values).
+        </div>
+      </div>
+    </div>
+
+    <!-- Closing strip: formal mathematical statement -->
+    <div class="math-block" data-step="6" style="flex: none; padding: 12px; margin: 0; font-size: 1.15rem; text-align: center;">
+      \(\displaystyle \underbrace{|\mathcal{N}_K(v)| \sim \mathcal{O}(b^{K})}_{\text{Exponential receptive field}} \;\gg\; \underbrace{d}_{\text{Fixed vector}} \quad\Longrightarrow\quad \left\| \frac{\partial h_v^{(K)}}{\partial h_u^{(0)}} \right\| \xrightarrow{K \to \infty} 0 \;\;\text{(Lost long-range dependency)}\)
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
