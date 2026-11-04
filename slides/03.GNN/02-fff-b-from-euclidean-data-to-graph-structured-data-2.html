@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GNN: The unfair advantage</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .advantage-slide { padding: 36px 48px 40px; justify-content: flex-start; }
+    .advantage-slide .title { font-size: 50px; margin: 0 0 12px; }
+    .advantage-slide .subtitle { font-size: 27px; margin: 0; line-height: 1.3; }
+    .advantage-content { display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+      flex: 1; min-height: 0; margin-top: 18px; }
+    .data-group { min-width: 0; padding: 20px; display: flex; flex-direction: column;
+      transition: opacity .65s ease, transform .65s cubic-bezier(.22,.61,.36,1), visibility .65s; }
+    .data-group.step-hidden { transform: translateY(20px); }
+    .data-group h2 { font-size: 30px; line-height: 1.2; font-weight: 750; text-align: center; margin: 0; }
+    .data-visual { display: block; width: 100%; height: 300px; flex: 0 0 300px; margin-top: 12px; }
+    .diagram-label { fill: #475569; font-size: 20px; font-weight: 600; text-anchor: middle; }
+    .diagram-caption { fill: #64748b; font-size: 18px; text-anchor: middle; }
+    .conversion-arrow { fill: none; stroke: #64748b; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .pixel-edge { fill: none; stroke: #94a3b8; stroke-width: 2; }
+    .pixel-node { stroke: #2563eb; stroke-width: 1.5; }
+    .source-word { font-size: 23px; font-weight: 700; text-anchor: middle; fill: #2563eb; }
+    .word-node { fill: white; stroke: #2563eb; stroke-width: 2.5; }
+    .word-label { fill: #1d4ed8; font-size: 20px; font-weight: 650; text-anchor: middle; dominant-baseline: central; }
+    .word-edge { stroke: #2563eb; stroke-width: 2.5; }
+    .word-halo { fill: none; stroke: #2563eb; stroke-width: 2; opacity: 0;
+      animation: word-focus 4s ease-in-out infinite; }
+    .second-word { animation-delay: 2s; }
+    .source-first { animation: word-emphasis 4s ease-in-out infinite; }
+    .source-second { animation: word-emphasis 4s ease-in-out 2s infinite; }
+    .molecular-bond { fill: none; stroke: #64748b; stroke-width: 5; stroke-linecap: round; }
+    .atom { stroke: white; stroke-width: 2; }
+    .carbon { fill: #059669; }
+    .oxygen { fill: #ef4444; }
+    .hydrogen { fill: #e2e8f0; stroke: #94a3b8; stroke-width: 1.5; }
+    .atom-label { font-size: 20px; font-weight: 700; text-anchor: middle; dominant-baseline: central; fill: white; }
+    .hydrogen-label { font-size: 16px; fill: #475569; }
+    .social-edge { fill: none; stroke: #94a3b8; stroke-width: 2; }
+    .social-message { fill: none; stroke: #059669; stroke-width: 3; stroke-dasharray: 8 20;
+      animation: social-flow 3s linear infinite; }
+    .person > circle:first-child { fill: #d1fae5; stroke: #059669; stroke-width: 2; }
+    .person-shape { fill: #059669; }
+    .data-note { margin: auto 0 0; padding-top: 14px; font-size: 22px; line-height: 1.35; color: #475569; text-align: left; }
+    .data-note strong { font-weight: 750; }
+    .step-hidden .word-halo, .step-hidden .source-word, .step-hidden .social-message { animation-play-state: paused; }
+    @keyframes word-focus { 0%, 42% { opacity: .75; } 50%, 92% { opacity: 0; } 100% { opacity: .75; } }
+    @keyframes word-emphasis { 0%, 42% { fill: #2563eb; } 50%, 92% { fill: #94a3b8; } 100% { fill: #2563eb; } }
+    @keyframes social-flow { to { stroke-dashoffset: -56; } }
+    @media (prefers-reduced-motion: reduce) {
+      .data-group { transition: none; }
+      .data-group.step-hidden { transform: none; }
+      .word-halo, .source-word, .social-message { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Native diagrams stay editable and work in the editor and exported player without image assets. -->
+  <div class="slide-layout advantage-slide">
+    <header>
+      <h1 class="title">GNN: The unfair advantage</h1>
+      <p class="subtitle">Graphs can model almost any kind of data.</p>
+    </header>
+    <main class="advantage-content">
+      <section id="traditional" class="panel panel-primary data-group" data-step="1" aria-labelledby="traditional-title">
+        <h2 id="traditional-title" class="text-primary">Traditional Data</h2>
+        <svg class="data-visual" viewBox="0 0 530 350" role="img" aria-labelledby="traditional-diagram-title traditional-diagram-desc">
+          <title id="traditional-diagram-title">Images and text as graphs</title>
+          <desc id="traditional-diagram-desc">A four by four pixel image maps to a grid graph: each pixel becomes a node, connected to its neighboring pixels. Hello world maps to two connected word nodes. Highlighting pairs each source word with its node.</desc>
+          <text class="diagram-label" x="130" y="26">Image pixels</text>
+          <text class="diagram-label" x="400" y="26">Text</text>
+          <g aria-hidden="true">
+            <rect x="79" y="53" width="24" height="24" rx="2" fill="#dbeafe"/>
+            <rect x="106" y="53" width="24" height="24" rx="2" fill="#93c5fd"/>
+            <rect x="133" y="53" width="24" height="24" rx="2" fill="#93c5fd"/>
+            <rect x="160" y="53" width="24" height="24" rx="2" fill="#dbeafe"/>
+            <rect x="79" y="80" width="24" height="24" rx="2" fill="#93c5fd"/>
+            <rect x="106" y="80" width="24" height="24" rx="2" fill="#3b82f6"/>
+            <rect x="133" y="80" width="24" height="24" rx="2" fill="#1d4ed8"/>
+            <rect x="160" y="80" width="24" height="24" rx="2" fill="#93c5fd"/>
+            <rect x="79" y="107" width="24" height="24" rx="2" fill="#93c5fd"/>
+            <rect x="106" y="107" width="24" height="24" rx="2" fill="#1d4ed8"/>
+            <rect x="133" y="107" width="24" height="24" rx="2" fill="#3b82f6"/>
+            <rect x="160" y="107" width="24" height="24" rx="2" fill="#93c5fd"/>
+            <rect x="79" y="134" width="24" height="24" rx="2" fill="#dbeafe"/>
+            <rect x="106" y="134" width="24" height="24" rx="2" fill="#93c5fd"/>
+            <rect x="133" y="134" width="24" height="24" rx="2" fill="#93c5fd"/>
+            <rect x="160" y="134" width="24" height="24" rx="2" fill="#dbeafe"/>
+            <text class="source-word source-first" x="356" y="111">Hello</text>
+            <text class="source-word source-second" x="446" y="111">world!</text>
+            <path class="conversion-arrow" d="M 130 170 V 196 M 122 188 L 130 196 L 138 188"/>
+            <path class="conversion-arrow" d="M 400 170 V 196 M 392 188 L 400 196 L 408 188"/>
+            <path class="pixel-edge" d="M 88 224 h 28"/>
+            <path class="pixel-edge" d="M 88 224 v 28"/>
+            <path class="pixel-edge" d="M 116 224 h 28"/>
+            <path class="pixel-edge" d="M 116 224 v 28"/>
+            <path class="pixel-edge" d="M 144 224 h 28"/>
+            <path class="pixel-edge" d="M 144 224 v 28"/>
+            <path class="pixel-edge" d="M 172 224 v 28"/>
+            <path class="pixel-edge" d="M 88 252 h 28"/>
+            <path class="pixel-edge" d="M 88 252 v 28"/>
+            <path class="pixel-edge" d="M 116 252 h 28"/>
+            <path class="pixel-edge" d="M 116 252 v 28"/>
+            <path class="pixel-edge" d="M 144 252 h 28"/>
+            <path class="pixel-edge" d="M 144 252 v 28"/>
+            <path class="pixel-edge" d="M 172 252 v 28"/>
+            <path class="pixel-edge" d="M 88 280 h 28"/>
+            <path class="pixel-edge" d="M 88 280 v 28"/>
+            <path class="pixel-edge" d="M 116 280 h 28"/>
+            <path class="pixel-edge" d="M 116 280 v 28"/>
+            <path class="pixel-edge" d="M 144 280 h 28"/>
+            <path class="pixel-edge" d="M 144 280 v 28"/>
+            <path class="pixel-edge" d="M 172 280 v 28"/>
+            <path class="pixel-edge" d="M 88 308 h 28"/>
+            <path class="pixel-edge" d="M 116 308 h 28"/>
+            <path class="pixel-edge" d="M 144 308 h 28"/>
+            <circle class="pixel-node" cx="88" cy="224" r="8" fill="#dbeafe"/>
+            <circle class="pixel-node" cx="116" cy="224" r="8" fill="#93c5fd"/>
+            <circle class="pixel-node" cx="144" cy="224" r="8" fill="#93c5fd"/>
+            <circle class="pixel-node" cx="172" cy="224" r="8" fill="#dbeafe"/>
+            <circle class="pixel-node" cx="88" cy="252" r="8" fill="#93c5fd"/>
+            <circle class="pixel-node" cx="116" cy="252" r="8" fill="#3b82f6"/>
+            <circle class="pixel-node" cx="144" cy="252" r="8" fill="#1d4ed8"/>
+            <circle class="pixel-node" cx="172" cy="252" r="8" fill="#93c5fd"/>
+            <circle class="pixel-node" cx="88" cy="280" r="8" fill="#93c5fd"/>
+            <circle class="pixel-node" cx="116" cy="280" r="8" fill="#1d4ed8"/>
+            <circle class="pixel-node" cx="144" cy="280" r="8" fill="#3b82f6"/>
+            <circle class="pixel-node" cx="172" cy="280" r="8" fill="#93c5fd"/>
+            <circle class="pixel-node" cx="88" cy="308" r="8" fill="#dbeafe"/>
+            <circle class="pixel-node" cx="116" cy="308" r="8" fill="#93c5fd"/>
+            <circle class="pixel-node" cx="144" cy="308" r="8" fill="#93c5fd"/>
+            <circle class="pixel-node" cx="172" cy="308" r="8" fill="#dbeafe"/>
+            <line class="word-edge" x1="389" y1="266" x2="419" y2="266"/>
+            <circle class="word-halo" cx="347" cy="266" r="49"/>
+            <circle class="word-halo second-word" cx="462" cy="266" r="49"/>
+            <circle class="word-node" cx="347" cy="266" r="43"/>
+            <circle class="word-node" cx="462" cy="266" r="43"/>
+            <text class="word-label" x="347" y="266">Hello</text>
+            <text class="word-label" x="462" y="266">world!</text>
+          </g>
+          <text class="diagram-caption" x="130" y="343">Pixels become nodes</text>
+          <text class="diagram-caption" x="400" y="343">Each word is a node</text>
+        </svg>
+        <p class="data-note"><strong class="text-primary">Images form grid graphs:</strong> pixels are nodes and neighboring pixels are connected. <strong class="text-primary">Text forms a chain,</strong> with a node for each word. Even traditional data can be represented as graphs.</p>
+      </section>
+      <section id="heterogeneous" class="panel panel-accent data-group" data-step="2" aria-labelledby="heterogeneous-title">
+        <h2 id="heterogeneous-title" class="text-accent">Heterogeneous Data</h2>
+        <svg class="data-visual" viewBox="0 0 530 350" role="img" aria-labelledby="heterogeneous-diagram-title heterogeneous-diagram-desc">
+          <title id="heterogeneous-diagram-title">A molecule and a social network</title>
+          <desc id="heterogeneous-diagram-desc">An ethanol molecule with carbon, hydrogen and oxygen atoms connected by chemical bonds. Beside it, six profile icons connected by social relationships form an irregular graph with animated messages.</desc>
+          <text class="diagram-label" x="130" y="26">Molecules</text>
+          <text class="diagram-label" x="400" y="26">Social network</text>
+          <g aria-hidden="true">
+            <path class="molecular-bond" d="M 72 174 L 144 174"/>
+            <path class="molecular-bond" d="M 144 174 L 202 132"/>
+            <path class="molecular-bond" d="M 72 174 L 34 119"/>
+            <path class="molecular-bond" d="M 72 174 L 29 219"/>
+            <path class="molecular-bond" d="M 72 174 L 72 251"/>
+            <path class="molecular-bond" d="M 144 174 L 144 96"/>
+            <path class="molecular-bond" d="M 144 174 L 144 251"/>
+            <path class="molecular-bond" d="M 202 132 L 236 87"/>
+            <circle class="atom carbon" cx="72" cy="174" r="20"/>
+            <text class="atom-label " x="72" y="174">C</text>
+            <circle class="atom carbon" cx="144" cy="174" r="20"/>
+            <text class="atom-label " x="144" y="174">C</text>
+            <circle class="atom oxygen" cx="202" cy="132" r="20"/>
+            <text class="atom-label " x="202" y="132">O</text>
+            <circle class="atom hydrogen" cx="34" cy="119" r="14"/>
+            <text class="atom-label hydrogen-label" x="34" y="119">H</text>
+            <circle class="atom hydrogen" cx="29" cy="219" r="14"/>
+            <text class="atom-label hydrogen-label" x="29" y="219">H</text>
+            <circle class="atom hydrogen" cx="72" cy="251" r="14"/>
+            <text class="atom-label hydrogen-label" x="72" y="251">H</text>
+            <circle class="atom hydrogen" cx="144" cy="96" r="14"/>
+            <text class="atom-label hydrogen-label" x="144" y="96">H</text>
+            <circle class="atom hydrogen" cx="144" cy="251" r="14"/>
+            <text class="atom-label hydrogen-label" x="144" y="251">H</text>
+            <circle class="atom hydrogen" cx="236" cy="87" r="14"/>
+            <text class="atom-label hydrogen-label" x="236" y="87">H</text>
+            <path class="social-edge" d="M 331 90 L 443 82"/>
+            <path class="social-edge" d="M 331 90 L 383 174"/>
+            <path class="social-edge" d="M 331 90 L 318 252"/>
+            <path class="social-edge" d="M 443 82 L 490 174"/>
+            <path class="social-edge" d="M 443 82 L 383 174"/>
+            <path class="social-edge" d="M 490 174 L 433 261"/>
+            <path class="social-edge" d="M 490 174 L 383 174"/>
+            <path class="social-edge" d="M 433 261 L 318 252"/>
+            <path class="social-edge" d="M 433 261 L 383 174"/>
+            <path class="social-edge" d="M 318 252 L 383 174"/>
+            <path class="social-message" d="M 331 90 L 383 174"/>
+            <path class="social-message" d="M 443 82 L 383 174"/>
+            <path class="social-message" d="M 383 174 L 433 261"/>
+            <g class="person" transform="translate(331 90)">
+              <circle r="22"/>
+              <circle class="person-shape" cy="-6" r="6"/>
+              <path class="person-shape" d="M -11 12 C -11 0 11 0 11 12 Z"/>
+            </g>
+            <g class="person" transform="translate(443 82)">
+              <circle r="22"/>
+              <circle class="person-shape" cy="-6" r="6"/>
+              <path class="person-shape" d="M -11 12 C -11 0 11 0 11 12 Z"/>
+            </g>
+            <g class="person" transform="translate(490 174)">
+              <circle r="22"/>
+              <circle class="person-shape" cy="-6" r="6"/>
+              <path class="person-shape" d="M -11 12 C -11 0 11 0 11 12 Z"/>
+            </g>
+            <g class="person" transform="translate(433 261)">
+              <circle r="22"/>
+              <circle class="person-shape" cy="-6" r="6"/>
+              <path class="person-shape" d="M -11 12 C -11 0 11 0 11 12 Z"/>
+            </g>
+            <g class="person" transform="translate(318 252)">
+              <circle r="22"/>
+              <circle class="person-shape" cy="-6" r="6"/>
+              <path class="person-shape" d="M -11 12 C -11 0 11 0 11 12 Z"/>
+            </g>
+            <g class="person" transform="translate(383 174)">
+              <circle r="22"/>
+              <circle class="person-shape" cy="-6" r="6"/>
+              <path class="person-shape" d="M -11 12 C -11 0 11 0 11 12 Z"/>
+            </g>
+          </g>
+          <text class="diagram-caption" x="130" y="343">Atoms + bonds</text>
+          <text class="diagram-caption" x="400" y="343">People + connections</text>
+        </svg>
+        <p class="data-note">Atoms and bonds form molecular graphs; people and relationships form social graphs. <strong class="text-accent">GNNs learn from these connections,</strong> combining node features with information from neighbors to make predictions.</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

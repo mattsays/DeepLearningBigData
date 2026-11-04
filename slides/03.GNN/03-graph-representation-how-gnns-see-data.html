@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>How GNNs see a graph</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .representation-slide { padding: 36px 48px 40px; justify-content: flex-start; }
+    .representation-slide .title { font-size: 48px; margin: 0 0 10px; }
+    .representation-slide .subtitle { font-size: 26px; line-height: 1.3; margin: 0; }
+    .representation-body { position: relative; margin-top: 28px; height: 370px; flex: none; }
+    .graph-example { position: absolute; top: 0; left: 0; width: 320px; text-align: center;
+      transform: translateX(0); transition: transform .8s cubic-bezier(.22,.61,.36,1); }
+    .representation-body:has(#features.step-hidden) .graph-example { transform: translateX(432px); }
+    .graph-name { font-size: 30px; line-height: 1.4; margin: 0 0 4px; }
+    .example-graph { width: 320px; height: 290px; display: block; }
+    .graph-edge { fill: none; stroke: #94a3b8; stroke-width: 3; stroke-linecap: round; }
+    .graph-node { stroke: white; stroke-width: 2; }
+    .node-label { fill: white; font-size: 25px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+    .feature-label { font-size: 22px; font-weight: 650; text-anchor: middle; }
+    .self-loop { fill: none; stroke-width: 2.5; stroke-dasharray: 5 4; }
+    .degree-focus { fill: none; stroke: #059669; stroke-width: 4; }
+    .graph-key { font-size: 21px; color: #64748b; margin: 4px 0 0; line-height: 1.3; }
+    .matrix-area { position: absolute; top: 0; left: 360px; right: 0; display: grid;
+      grid-template-columns: 180px 264px 1fr; gap: 20px; }
+    .matrix-block { text-align: center; min-width: 0;
+      transition: opacity .55s ease, transform .55s ease, visibility .55s; }
+    .matrix-block.step-hidden { transform: translateY(14px); }
+    .matrix-block h2 { margin: 0; font-size: 25px; line-height: 1.3; font-weight: 750; }
+    .dimension { min-height: 34px; margin: 7px 0 12px; font-size: 21px; line-height: 1.4; color: #475569; }
+    .matrix { border-spacing: 5px; border-collapse: separate; margin: 0 auto; font-size: 24px;
+      font-variant-numeric: tabular-nums; }
+    .matrix th { padding: 0; width: 30px; height: 30px; font-size: 19px; font-weight: 650; }
+    .matrix td { width: 39px; height: 40px; padding: 0; text-align: center; border-radius: 5px; font-weight: 600; }
+    .matrix .connected { background: var(--row-fill); color: var(--row-color); }
+    .matrix .zero { color: #94a3b8; font-weight: 400; }
+    .matrix thead th { height: 28px; }
+    .matrix-small thead th { font-size: 19px; color: #64748b; font-weight: 500; }
+    .node-index { width: 23px; height: 23px; border-radius: 50%; display: inline-flex;
+      align-items: center; justify-content: center; font-size: 15px; line-height: 1;
+      font-weight: 650; color: white; background: var(--node-color); }
+    .matrix-note { margin: 12px 0 0; font-size: 21px; line-height: 1.35; color: #475569; }
+    .degree-diagonal { font-size: 21px; }
+    .preprocessing { position: absolute; left: 48px; right: 48px; bottom: 34px;
+      margin: 0; padding: 14px 24px; text-align: center; border-left: 5px solid #059669;
+      border-radius: 0 14px 14px 0; background: #ecfdf5;
+      transition: opacity .55s ease, transform .55s ease, visibility .55s; }
+    .preprocessing.step-hidden { transform: translateY(12px); }
+    .preprocessing h2 { font-size: 22px; color: #059669; margin: 0 0 6px; line-height: 1.3; }
+    .preprocessing .formula { font-size: 26px; line-height: 1.45; }
+    .preprocessing p { margin: 6px 0 0; font-size: 21px; line-height: 1.3; color: #475569; }
+    @media (prefers-reduced-motion: reduce) {
+      .graph-example, .matrix-block, .preprocessing { transition: none; }
+      .matrix-block.step-hidden, .preprocessing.step-hidden { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Condenses the graph-representation and mathematical-representation slides into one example.
+       Builds: features, adjacency, degrees, then GCN self-loops and normalization.
+       The example is an undirected, unweighted graph with one feature per node (F = 1). -->
+  <div class="slide-layout representation-slide">
+    <header>
+      <h1 class="title">How GNNs see a graph</h1>
+      <p class="subtitle">Nodes carry features. Edges define connections.</p>
+    </header>
+    <main class="representation-body">
+      <section class="graph-example" aria-label="A four-node graph">
+        <div class="graph-name">\(G=(V,E)\)</div>
+        <svg class="example-graph" viewBox="0 0 320 320" role="img" aria-labelledby="example-title example-desc">
+          <title id="example-title">One graph, four nodes</title>
+          <desc id="example-desc">Undirected edges connect nodes 1 and 2, 1 and 3, 2 and 3, and 3 and 4. Node features are respectively 1, 2, 3 and 4. Degrees are 2, 2, 3 and 1.</desc>
+          <g class="graph-edge" aria-hidden="true">
+            <path d="M 60 65 L 255 65"/>
+            <path d="M 60 65 L 160 170"/>
+            <path d="M 255 65 L 160 170"/>
+            <path d="M 160 170 L 160 270"/>
+          </g>
+          <g data-step="3" aria-hidden="true"><circle class="degree-focus" cx="160" cy="170" r="30"/></g>
+          <g id="self-loops" data-step="4" aria-label="Self-loops preserve each node's own information">
+            <circle class="self-loop" cx="60" cy="65" r="33" stroke="#2563eb"/>
+            <circle class="self-loop" cx="255" cy="65" r="33" stroke="#db2777"/>
+            <circle class="self-loop" cx="160" cy="170" r="37" stroke="#059669"/>
+            <circle class="self-loop" cx="160" cy="270" r="33" stroke="#d97706"/>
+          </g>
+          <g aria-hidden="true">
+            <circle class="graph-node" cx="60" cy="65" r="23" fill="#2563eb"/>
+            <circle class="graph-node" cx="255" cy="65" r="23" fill="#db2777"/>
+            <circle class="graph-node" cx="160" cy="170" r="23" fill="#059669"/>
+            <circle class="graph-node" cx="160" cy="270" r="23" fill="#d97706"/>
+            <text class="node-label" x="60" y="65">1</text>
+            <text class="node-label" x="255" y="65">2</text>
+            <text class="node-label" x="160" y="170">3</text>
+            <text class="node-label" x="160" y="270">4</text>
+          </g>
+          <g id="feature-labels" data-step="1" aria-label="Node feature values">
+            <text class="feature-label" x="60" y="22" fill="#2563eb">x₁ = 1</text>
+            <text class="feature-label" x="255" y="22" fill="#db2777">x₂ = 2</text>
+            <text class="feature-label" x="238" y="177" fill="#059669">x₃ = 3</text>
+            <text class="feature-label" x="238" y="277" fill="#d97706">x₄ = 4</text>
+          </g>
+        </svg>
+        <p class="graph-key">\(V\): nodes · \(E\): edges</p>
+      </section>
+      <div class="matrix-area">
+        <section id="features" class="matrix-block" data-step="1" aria-labelledby="features-title">
+          <h2 id="features-title" class="text-primary">X · Features</h2>
+          <div class="dimension">\(X\in\mathbb{R}^{N\times F}\)</div>
+          <table class="matrix matrix-small" aria-label="Node feature matrix X, with one feature per node">
+            <thead><tr><th scope="col">node</th><th scope="col">xᵢ</th></tr></thead>
+            <tbody><tr><th scope="row"><span class="node-index" style="--node-color:#2563eb">1</span></th><td style="background:#eff6ff;color:#2563eb">1</td></tr><tr><th scope="row"><span class="node-index" style="--node-color:#db2777">2</span></th><td style="background:#fdf2f8;color:#db2777">2</td></tr><tr><th scope="row"><span class="node-index" style="--node-color:#059669">3</span></th><td style="background:#ecfdf5;color:#059669">3</td></tr><tr><th scope="row"><span class="node-index" style="--node-color:#d97706">4</span></th><td style="background:#fffbeb;color:#d97706">4</td></tr></tbody>
+          </table>
+          <p class="matrix-note">N rows: nodes<br>F cols: features</p>
+        </section>
+        <section id="adjacency" class="matrix-block" data-step="2" aria-labelledby="adjacency-title">
+          <h2 id="adjacency-title" class="text-accent">A · Connections</h2>
+          <div class="dimension">\(A\in\mathbb{R}^{N\times N}\)</div>
+          <table class="matrix adjacency-matrix" aria-label="Adjacency matrix A">
+            <thead><tr><th aria-label="row node, column neighbor"></th><th scope="col" style="color:#2563eb">1</th><th scope="col" style="color:#db2777">2</th><th scope="col" style="color:#059669">3</th><th scope="col" style="color:#d97706">4</th></tr></thead>
+            <tbody><tr><th scope="row"><span class="node-index" style="--node-color:#2563eb">1</span></th><td class="zero" style="--row-color:#2563eb;--row-fill:#eff6ff">0</td><td class="connected" style="--row-color:#2563eb;--row-fill:#eff6ff">1</td><td class="connected" style="--row-color:#2563eb;--row-fill:#eff6ff">1</td><td class="zero" style="--row-color:#2563eb;--row-fill:#eff6ff">0</td></tr><tr><th scope="row"><span class="node-index" style="--node-color:#db2777">2</span></th><td class="connected" style="--row-color:#db2777;--row-fill:#fdf2f8">1</td><td class="zero" style="--row-color:#db2777;--row-fill:#fdf2f8">0</td><td class="connected" style="--row-color:#db2777;--row-fill:#fdf2f8">1</td><td class="zero" style="--row-color:#db2777;--row-fill:#fdf2f8">0</td></tr><tr><th scope="row"><span class="node-index" style="--node-color:#059669">3</span></th><td class="connected" style="--row-color:#059669;--row-fill:#ecfdf5">1</td><td class="connected" style="--row-color:#059669;--row-fill:#ecfdf5">1</td><td class="zero" style="--row-color:#059669;--row-fill:#ecfdf5">0</td><td class="connected" style="--row-color:#059669;--row-fill:#ecfdf5">1</td></tr><tr><th scope="row"><span class="node-index" style="--node-color:#d97706">4</span></th><td class="zero" style="--row-color:#d97706;--row-fill:#fffbeb">0</td><td class="zero" style="--row-color:#d97706;--row-fill:#fffbeb">0</td><td class="connected" style="--row-color:#d97706;--row-fill:#fffbeb">1</td><td class="zero" style="--row-color:#d97706;--row-fill:#fffbeb">0</td></tr></tbody>
+          </table>
+          <p class="matrix-note">\(A_{ij}=1\) when connected</p>
+        </section>
+        <section id="degrees" class="matrix-block" data-step="3" aria-labelledby="degrees-title">
+          <h2 id="degrees-title" style="color:#b45309;">D · Degrees</h2>
+          <div class="dimension">\(D_{ii}=\sum_j A_{ij}\)</div>
+          <table class="matrix matrix-small" aria-label="Node degrees: 2, 2, 3, 1">
+            <thead><tr><th scope="col">node</th><th scope="col">degree</th></tr></thead>
+            <tbody><tr><th scope="row"><span class="node-index" style="--node-color:#2563eb">1</span></th><td style="background:#eff6ff;color:#2563eb">2</td></tr><tr><th scope="row"><span class="node-index" style="--node-color:#db2777">2</span></th><td style="background:#fdf2f8;color:#db2777">2</td></tr><tr><th scope="row"><span class="node-index" style="--node-color:#059669">3</span></th><td style="background:#ecfdf5;color:#059669">3</td></tr><tr><th scope="row"><span class="node-index" style="--node-color:#d97706">4</span></th><td style="background:#fffbeb;color:#d97706">1</td></tr></tbody>
+          </table>
+          <p class="matrix-note degree-diagonal">\(D=\operatorname{diag}(2,2,3,1)\)</p>
+        </section>
+      </div>
+    </main>
+    <section id="gcn-preprocessing" class="preprocessing" data-step="4" aria-labelledby="gcn-title">
+      <h2 id="gcn-title">GCN: self-loops + normalization</h2>
+      <div class="formula">\(\tilde A=A+I\quad\quad\tilde D_{ii}=\sum_j\tilde A_{ij}\quad\quad\hat A=\tilde D^{-1/2}\tilde A\tilde D^{-1/2}\)</div>
+      <p>Keep each node’s own features. Balance neighbor contributions.</p>
+    </section>
+  </div>
+</body>
+</html>

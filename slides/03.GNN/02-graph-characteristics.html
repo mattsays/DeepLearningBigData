@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="source" content="papers/GNN.typ, section 4: Le Sfide (English translation)">
+  <title>GNN: Graph characteristics</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .characteristics-slide { padding: 36px 48px 40px; justify-content: flex-start; }
+    .characteristics-slide .title { font-size: 48px; margin: 0; }
+    .characteristics-body { display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+      flex: 1; min-height: 0; margin-top: 28px; }
+    .challenge { padding: 24px 20px; display: flex; flex-direction: column; min-width: 0;
+      transition: opacity .65s ease, transform .65s cubic-bezier(.22,.61,.36,1), visibility .65s; }
+    .challenge.step-hidden { transform: translateY(18px); }
+    .challenge h2 { margin: 0; text-align: center; font-size: 29px; line-height: 1.25; font-weight: 750; }
+    .challenge svg { display: block; width: 100%; height: 280px; flex: 0 0 280px; margin-top: 18px; }
+    .graph-edge { stroke: #94a3b8; stroke-width: 3; fill: none; stroke-linecap: round; }
+    .graph-node { stroke: white; stroke-width: 2; }
+    .node-label { fill: white; text-anchor: middle; dominant-baseline: central; font-size: 21px; font-weight: 700; }
+    .order-label { text-anchor: middle; font-size: 23px; font-weight: 750; }
+    .size-label { text-anchor: middle; font-size: 22px; font-weight: 650; fill: #475569; }
+    .reorder-arrow { stroke: #64748b; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .reorder-label { font-size: 18px; text-anchor: middle; fill: #64748b; }
+    .challenge-caption { margin: auto 0 0; padding-top: 18px; text-align: center; }
+    .challenge-caption strong { display: block; color: #059669; font-size: 26px; line-height: 1.25; margin-bottom: 8px; }
+    .challenge-caption p { margin: 0; font-size: 22px; line-height: 1.35; color: #475569; text-align: left; }
+    .left-caption strong { color: #2563eb; }
+    @media (prefers-reduced-motion: reduce) {
+      .challenge { transition: none; }
+      .challenge.step-hidden { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Source: papers/GNN.typ, section 4. The graph-level prediction must be invariant;
+       node-level outputs are equivariant, as developed in the dedicated permutation slide. -->
+  <div class="slide-layout characteristics-slide">
+    <h1 class="title">GNN: Graph characteristics</h1>
+    <main class="characteristics-body">
+      <section id="variable-graphs" class="panel panel-primary challenge" data-step="1" aria-labelledby="variable-title">
+        <h2 id="variable-title" class="text-primary">Variable size &amp; topology</h2>
+        <svg viewBox="0 0 530 330" role="img" aria-labelledby="sizes-title sizes-desc">
+          <title id="sizes-title">Graphs have different sizes and connection patterns</title>
+          <desc id="sizes-desc">A three-node chain, a five-node star, and a seven-node irregular graph. Neither node count nor connectivity is fixed.</desc>
+          <g aria-hidden="true">
+            <path class="graph-edge" d="M 34 150 L 88 115"/>
+            <path class="graph-edge" d="M 88 115 L 140 155"/>
+            <circle class="graph-node" cx="34" cy="150" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="88" cy="115" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="140" cy="155" r="11" fill="#2563eb"/>
+            <path class="graph-edge" d="M 260 145 L 215 95"/>
+            <path class="graph-edge" d="M 260 145 L 310 95"/>
+            <path class="graph-edge" d="M 260 145 L 220 205"/>
+            <path class="graph-edge" d="M 260 145 L 307 205"/>
+            <circle class="graph-node" cx="260" cy="145" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="215" cy="95" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="310" cy="95" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="220" cy="205" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="307" cy="205" r="11" fill="#2563eb"/>
+            <path class="graph-edge" d="M 387 80 L 455 90"/>
+            <path class="graph-edge" d="M 387 80 L 382 210"/>
+            <path class="graph-edge" d="M 387 80 L 418 152"/>
+            <path class="graph-edge" d="M 455 90 L 495 155"/>
+            <path class="graph-edge" d="M 455 90 L 418 152"/>
+            <path class="graph-edge" d="M 495 155 L 463 224"/>
+            <path class="graph-edge" d="M 495 155 L 418 152"/>
+            <path class="graph-edge" d="M 463 224 L 382 210"/>
+            <path class="graph-edge" d="M 463 224 L 418 152"/>
+            <path class="graph-edge" d="M 463 224 L 500 245"/>
+            <path class="graph-edge" d="M 382 210 L 418 152"/>
+            <circle class="graph-node" cx="387" cy="80" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="455" cy="90" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="495" cy="155" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="463" cy="224" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="382" cy="210" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="418" cy="152" r="11" fill="#2563eb"/>
+            <circle class="graph-node" cx="500" cy="245" r="11" fill="#2563eb"/>
+          </g>
+          <text class="size-label" x="88" y="300">3 nodes</text>
+          <text class="size-label" x="263" y="300">5 nodes</text>
+          <text class="size-label" x="438" y="300">7 nodes</text>
+        </svg>
+        <div class="challenge-caption left-caption">
+          <strong>No fixed structure</strong>
+          <p>Graphs can contain different numbers of nodes and edges. Each node may have a different number of neighbors, so the model must handle changing sizes and irregular connection patterns.</p>
+        </div>
+      </section>
+      <section id="unordered-graphs" class="panel panel-accent challenge" data-step="2" aria-labelledby="order-title">
+        <h2 id="order-title" class="text-accent">No canonical node order</h2>
+        <svg viewBox="0 0 530 330" role="img" aria-labelledby="ordering-title ordering-desc">
+          <title id="ordering-title">Different node orders describe the same graph</title>
+          <desc id="ordering-desc">Both drawings contain the same labeled nodes A, B, C and D and the same edges AB, AC, BC and CD. The enumeration changes from A B C D to C A D B. A graph-level prediction must remain unchanged.</desc>
+          <g aria-hidden="true">
+            <path class="graph-edge" d="M 48 85 L 197 85"/>
+            <path class="graph-edge" d="M 48 85 L 122 172"/>
+            <path class="graph-edge" d="M 197 85 L 122 172"/>
+            <path class="graph-edge" d="M 122 172 L 122 248"/>
+            <circle class="graph-node" cx="48" cy="85" r="20" fill="#2563eb"/>
+            <text class="node-label" x="48" y="85">A</text>
+            <circle class="graph-node" cx="197" cy="85" r="20" fill="#db2777"/>
+            <text class="node-label" x="197" y="85">B</text>
+            <circle class="graph-node" cx="122" cy="172" r="20" fill="#059669"/>
+            <text class="node-label" x="122" y="172">C</text>
+            <circle class="graph-node" cx="122" cy="248" r="20" fill="#d97706"/>
+            <text class="node-label" x="122" y="248">D</text>
+            <path class="graph-edge" d="M 350 85 L 492 174"/>
+            <path class="graph-edge" d="M 350 85 L 477 70"/>
+            <path class="graph-edge" d="M 492 174 L 477 70"/>
+            <path class="graph-edge" d="M 477 70 L 350 247"/>
+            <circle class="graph-node" cx="350" cy="85" r="20" fill="#2563eb"/>
+            <text class="node-label" x="350" y="85">A</text>
+            <circle class="graph-node" cx="492" cy="174" r="20" fill="#db2777"/>
+            <text class="node-label" x="492" y="174">B</text>
+            <circle class="graph-node" cx="477" cy="70" r="20" fill="#059669"/>
+            <text class="node-label" x="477" y="70">C</text>
+            <circle class="graph-node" cx="350" cy="247" r="20" fill="#d97706"/>
+            <text class="node-label" x="350" y="247">D</text>
+            <path class="reorder-arrow" d="M 242 159 H 287 M 279 151 L 287 159 L 279 167"/>
+            <text class="reorder-label" x="265" y="140">reorder</text>
+            <text class="order-label" x="56" y="309" fill="#2563eb">A</text>
+            <text class="order-label" x="100" y="309" fill="#db2777">B</text>
+            <text class="order-label" x="144" y="309" fill="#059669">C</text>
+            <text class="order-label" x="188" y="309" fill="#d97706">D</text>
+            <text class="order-label" x="357" y="309" fill="#059669">C</text>
+            <text class="order-label" x="401" y="309" fill="#2563eb">A</text>
+            <text class="order-label" x="445" y="309" fill="#d97706">D</text>
+            <text class="order-label" x="489" y="309" fill="#db2777">B</text>
+          </g>
+        </svg>
+        <div class="challenge-caption">
+          <strong>Permutation invariance</strong>
+          <p>The same graph can be listed in many node orders. Reordering the input changes its matrix representation, but not its meaning: a graph-level prediction must remain the same.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

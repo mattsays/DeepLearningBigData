@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Graph Neural Networks</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .gnn-opening { padding: 112px 100px 28px; justify-content: flex-start; background: white; box-shadow: none; }
+    .gnn-heading { position: absolute; left: 50%; top: 40px; width: 1080px; margin: 0;
+      font-size: 56px; line-height: 1.1; text-align: center; transform: translateX(-50%);
+      transition: top .9s cubic-bezier(.22,.61,.36,1), transform .9s cubic-bezier(.22,.61,.36,1); }
+    .gnn-opening:has(#gnn-reveal.step-hidden) .gnn-heading { top: 50%; transform: translate(-50%, -50%); }
+    .gnn-reveal { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 26px;
+      opacity: 1; visibility: visible; transition: opacity 1.2s ease, visibility 1.2s; }
+    .gnn-reveal.step-hidden { opacity: 0; visibility: hidden; }
+    .gnn-reveal svg { display: block; width: 900px; height: 320px; overflow: visible; }
+    .graph-edge { fill: none; stroke: #cbd5e1; stroke-width: 2.5; stroke-linecap: round; }
+    .graph-message { fill: none; stroke-width: 5; stroke-linecap: round; stroke-dasharray: .09 .91;
+      opacity: 0; animation: message-travel 6s linear infinite; }
+    .message-in { stroke: #2563eb; }
+    .message-out { stroke: #059669; animation-delay: 3s; }
+    .graph-node { fill: #eff6ff; stroke: #2563eb; stroke-width: 2.5; }
+    .node-core { fill: #2563eb; }
+    .central-node { animation: node-update 6s ease infinite; }
+    .neighbor-node { animation: neighbor-update 6s ease infinite; }
+    .outer-node { fill: #f8fafc; stroke: #94a3b8; }
+    .update-ring { fill: none; stroke: #059669; stroke-width: 2; opacity: 0;
+      transform-box: fill-box; transform-origin: center; animation: update-ring 6s ease-out infinite; }
+    .gnn-definition { width: 100%; margin: 0; padding: 22px 30px; border-left-color: #059669;
+      background: #ecfdf5; color: #064e3b; font-size: 28px; line-height: 1.35; }
+    .gnn-definition strong { font-style: normal; }
+    .gnn-definition p { margin: 0; }
+    .gnn-definition .definition-detail { margin-top: 14px; font-size: 24px; line-height: 1.4; font-style: normal; }
+    .step-hidden .graph-message, .step-hidden .central-node,
+    .step-hidden .neighbor-node, .step-hidden .update-ring { animation-play-state: paused; }
+    @keyframes message-travel {
+      0%, 8% { opacity: 0; stroke-dashoffset: .09; }
+      9% { opacity: 1; stroke-dashoffset: .09; }
+      37% { opacity: 1; stroke-dashoffset: -1; }
+      38%, 100% { opacity: 0; stroke-dashoffset: -1; }
+    }
+    @keyframes node-update {
+      0%, 35%, 100% { fill: #eff6ff; stroke: #2563eb; }
+      43%, 80% { fill: #a7f3d0; stroke: #059669; }
+    }
+    @keyframes neighbor-update {
+      0%, 80%, 100% { fill: #eff6ff; stroke: #2563eb; }
+      88%, 94% { fill: #a7f3d0; stroke: #059669; }
+    }
+    @keyframes update-ring {
+      0%, 36% { opacity: 0; transform: scale(.85); }
+      43% { opacity: .65; transform: scale(1); }
+      63%, 100% { opacity: 0; transform: scale(1.7); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .gnn-heading, .gnn-reveal { transition: none; }
+      .graph-message, .central-node, .neighbor-node, .update-ring { animation: none; }
+      .central-node { fill: #a7f3d0; stroke: #059669; }
+    }
+  </style>
+</head>
+<body>
+  <!-- The centered title moves up as the graph and its explanation fade in. -->
+  <div class="slide-layout gnn-opening">
+    <h1 class="title gnn-heading">Graph Neural Networks</h1>
+    <figure id="gnn-reveal" class="gnn-reveal" data-step="1">
+      <svg viewBox="0 0 930 370" role="img" aria-labelledby="gnn-graph-title gnn-graph-description">
+        <title id="gnn-graph-title">Graph Neural Networks: learning through connections</title>
+        <desc id="gnn-graph-description">An irregular graph with nine nodes. Blue messages travel from neighboring nodes to the central node. The central node updates, then sends green messages back through its connections. The cycle repeats.</desc>
+        <g aria-hidden="true">
+          <path class="graph-edge" d="M 110 190 L 255 65"/>
+          <path class="graph-edge" d="M 110 190 L 260 320"/>
+          <path class="graph-edge" d="M 110 190 L 435 188"/>
+          <path class="graph-edge" d="M 255 65 L 435 188"/>
+          <path class="graph-edge" d="M 255 65 L 490 55"/>
+          <path class="graph-edge" d="M 260 320 L 435 188"/>
+          <path class="graph-edge" d="M 260 320 L 575 320"/>
+          <path class="graph-edge" d="M 435 188 L 490 55"/>
+          <path class="graph-edge" d="M 435 188 L 575 320"/>
+          <path class="graph-edge" d="M 435 188 L 705 170"/>
+          <path class="graph-edge" d="M 490 55 L 705 170"/>
+          <path class="graph-edge" d="M 490 55 L 850 60"/>
+          <path class="graph-edge" d="M 575 320 L 705 170"/>
+          <path class="graph-edge" d="M 575 320 L 760 305"/>
+          <path class="graph-edge" d="M 705 170 L 760 305"/>
+          <path class="graph-edge" d="M 705 170 L 850 60"/>
+          <path class="graph-edge" d="M 760 305 L 850 60"/>
+          <path class="graph-message message-in" pathLength="1" d="M 110 190 L 435 188"/>
+          <path class="graph-message message-in" pathLength="1" d="M 255 65 L 435 188"/>
+          <path class="graph-message message-in" pathLength="1" d="M 260 320 L 435 188"/>
+          <path class="graph-message message-in" pathLength="1" d="M 490 55 L 435 188"/>
+          <path class="graph-message message-in" pathLength="1" d="M 575 320 L 435 188"/>
+          <path class="graph-message message-in" pathLength="1" d="M 705 170 L 435 188"/>
+          <path class="graph-message message-out" pathLength="1" d="M 435 188 L 110 190"/>
+          <path class="graph-message message-out" pathLength="1" d="M 435 188 L 255 65"/>
+          <path class="graph-message message-out" pathLength="1" d="M 435 188 L 260 320"/>
+          <path class="graph-message message-out" pathLength="1" d="M 435 188 L 490 55"/>
+          <path class="graph-message message-out" pathLength="1" d="M 435 188 L 575 320"/>
+          <path class="graph-message message-out" pathLength="1" d="M 435 188 L 705 170"/>
+          <circle class="graph-node neighbor-node" cx="110" cy="190" r="21"/>
+          <circle class="node-core" cx="110" cy="190" r="5"/>
+          <circle class="graph-node neighbor-node" cx="255" cy="65" r="21"/>
+          <circle class="node-core" cx="255" cy="65" r="5"/>
+          <circle class="graph-node neighbor-node" cx="260" cy="320" r="21"/>
+          <circle class="node-core" cx="260" cy="320" r="5"/>
+          <circle class="update-ring" cx="435" cy="188" r="37"/>
+          <circle class="graph-node central-node" cx="435" cy="188" r="29"/>
+          <circle class="node-core" cx="435" cy="188" r="7"/>
+          <circle class="graph-node neighbor-node" cx="490" cy="55" r="21"/>
+          <circle class="node-core" cx="490" cy="55" r="5"/>
+          <circle class="graph-node neighbor-node" cx="575" cy="320" r="21"/>
+          <circle class="node-core" cx="575" cy="320" r="5"/>
+          <circle class="graph-node neighbor-node" cx="705" cy="170" r="21"/>
+          <circle class="node-core" cx="705" cy="170" r="5"/>
+          <circle class="graph-node outer-node" cx="760" cy="305" r="21"/>
+          <circle class="node-core" cx="760" cy="305" r="5"/>
+          <circle class="graph-node outer-node" cx="850" cy="60" r="21"/>
+          <circle class="node-core" cx="850" cy="60" r="5"/>
+        </g>
+      </svg>
+      <!-- Definition follows the message-passing explanation in 08-neural-message-passing.html. -->
+      <blockquote class="quote-block gnn-definition">
+        <p><strong>Graph Neural Networks</strong> learn representations of graph-structured data by exchanging information between connected nodes.</p>
+        <p class="definition-detail">Each node combines its own features with messages from its neighbors. Repeating this process lets the network use both local attributes and relationships to make predictions about nodes, connections or the whole graph.</p>
+      </blockquote>
+    </figure>
+  </div>
+</body>
+</html>
