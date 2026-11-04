@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Artificial Spiking Neurons</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+  </style>
+</head>
+<body>
+
+<div class="slide-layout" style="padding: 36px 48px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div class="title" style="font-size: 2.75rem; margin-bottom: 0.25rem;">Artificial Spiking Neurons</div>
+  <div class="subtitle" style="font-size: 1.5rem; margin-bottom: 0;">Leaky integrate-and-fire: efficient, but hard to train</div>
+
+  <!-- Row 1: LIF circuit → spiking network → sparse events -->
+  <div style="display: flex; align-items: center; gap: 12px; margin-top: 14px;">
+
+    <!-- Panel 1: LIF circuit -->
+    <div class="panel panel-accent" data-step="1" style="flex: 1; min-width: 0; padding: 20px; margin: 0;">
+      <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">1. LIF circuit</div>
+      <svg viewBox="0 0 320 150" style="display: block; width: 100%; height: 130px; margin-bottom: 8px;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" font-family="sans-serif" font-size="13">
+        <!-- rails -->
+        <path d="M50 35 H245 M50 120 H245"/>
+        <!-- current source -->
+        <circle cx="50" cy="78" r="16"/>
+        <path d="M50 35 V62 M50 94 V120 M50 86 V70 M45 75 L50 70 L55 75"/>
+        <!-- capacitor -->
+        <path d="M130 35 V70 M114 70 H146 M114 82 H146 M130 82 V120"/>
+        <!-- resistor -->
+        <path d="M210 35 V52 L218 58 L202 70 L218 82 L202 94 L210 100 V120"/>
+        <!-- junctions -->
+        <circle cx="130" cy="35" r="3" fill="currentColor" stroke="none"/>
+        <circle cx="210" cy="35" r="3" fill="currentColor" stroke="none"/>
+        <circle cx="130" cy="120" r="3" fill="currentColor" stroke="none"/>
+        <circle cx="210" cy="120" r="3" fill="currentColor" stroke="none"/>
+        <!-- threshold comparator and spike output -->
+        <path d="M245 22 V48 L270 35 Z" fill="#f59e0b" fill-opacity="0.5" stroke="#f59e0b"/>
+        <path d="M270 35 H296 M290 30 L297 35 L290 40" stroke="#f59e0b"/>
+        <!-- labels -->
+        <text x="6" y="82" fill="currentColor" stroke="none">Iin</text>
+        <text x="152" y="80" fill="currentColor" stroke="none">C</text>
+        <text x="230" y="80" fill="currentColor" stroke="none">R</text>
+        <text x="170" y="28" fill="currentColor" stroke="none" text-anchor="middle">U[t]</text>
+        <text x="250" y="64" fill="#f59e0b" stroke="none">θ</text>
+        <text x="308" y="62" fill="#f59e0b" stroke="none" text-anchor="middle">S</text>
+      </svg>
+      <div style="font-size: 1.05rem; margin-bottom: 0;">The same RC dynamics, discretised: decay β, input WX[t], reset −θ after a spike.</div>
+    </div>
+
+    <!-- Arrow 1 -->
+    <div data-step="2" style="display: flex; justify-content: center;"><span class="arrow arrow-right">→</span></div>
+
+    <!-- Panel 2: spiking network, firing vs silent neurons -->
+    <div class="panel panel-accent" data-step="2" style="flex: 1; min-width: 0; padding: 20px; margin: 0;">
+      <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">2. Spiking network</div>
+      <svg viewBox="0 0 320 150" style="display: block; width: 100%; height: 130px; margin-bottom: 8px;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" font-family="sans-serif" font-size="13">
+        <!-- inactive connections (silent presynaptic neurons) -->
+        <path d="M40 75 L160 30 M40 75 L160 75 M40 75 L160 120 M160 30 L280 52 M160 30 L280 98 M160 120 L280 52 M160 120 L280 98" stroke="#94a3b8" stroke-width="1" stroke-opacity="0.45"/>
+        <!-- active connections (spikes propagate) -->
+        <path d="M40 30 L160 30 M40 30 L160 75 M40 30 L160 120 M40 120 L160 30 M40 120 L160 75 M40 120 L160 120 M160 75 L280 52 M160 75 L280 98" stroke="#f59e0b" stroke-width="2.5"/>
+        <!-- input layer: firing, silent, firing -->
+        <circle cx="40" cy="30" r="16" fill="#f59e0b" fill-opacity="0.3" stroke="none"/>
+        <circle cx="40" cy="30" r="11" fill="#f59e0b" stroke="#f59e0b"/>
+        <circle cx="40" cy="75" r="11" fill="#64748b" stroke="#64748b"/>
+        <circle cx="40" cy="120" r="16" fill="#f59e0b" fill-opacity="0.3" stroke="none"/>
+        <circle cx="40" cy="120" r="11" fill="#f59e0b" stroke="#f59e0b"/>
+        <!-- hidden layer: silent, firing, silent -->
+        <circle cx="160" cy="30" r="11" fill="#64748b" stroke="#64748b"/>
+        <circle cx="160" cy="75" r="16" fill="#f59e0b" fill-opacity="0.3" stroke="none"/>
+        <circle cx="160" cy="75" r="11" fill="#f59e0b" stroke="#f59e0b"/>
+        <circle cx="160" cy="120" r="11" fill="#64748b" stroke="#64748b"/>
+        <!-- output layer: firing, silent -->
+        <circle cx="280" cy="52" r="16" fill="#f59e0b" fill-opacity="0.3" stroke="none"/>
+        <circle cx="280" cy="52" r="11" fill="#f59e0b" stroke="#f59e0b"/>
+        <circle cx="280" cy="98" r="11" fill="#64748b" stroke="#64748b"/>
+        <!-- legend -->
+        <circle cx="12" cy="143" r="5" fill="#f59e0b" stroke="none"/>
+        <text x="22" y="147" fill="currentColor" stroke="none">spike</text>
+        <circle cx="80" cy="143" r="5" fill="#64748b" stroke="none"/>
+        <text x="90" y="147" fill="currentColor" stroke="none">silent</text>
+      </svg>
+      <div style="font-size: 1.05rem; margin-bottom: 0;">Only neurons with U &gt; θ fire (orange); silent ones (grey) cost no computation.</div>
+    </div>
+
+    <!-- Arrow 2 -->
+    <div data-step="3" style="display: flex; justify-content: center;"><span class="arrow arrow-right">→</span></div>
+
+    <!-- Panel 3: dense ANN activations vs sparse spike events -->
+    <div class="panel panel-accent" data-step="3" style="flex: 1; min-width: 0; padding: 20px; margin: 0;">
+      <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">3. Sparse events</div>
+      <svg viewBox="0 0 320 150" style="display: block; width: 100%; height: 130px; margin-bottom: 8px;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" font-family="sans-serif" font-size="13">
+        <!-- ANN: dense real-valued activations -->
+        <rect x="48" y="18" width="32" height="26" rx="4" fill="#3b82f6" fill-opacity="0.3" stroke="#3b82f6" stroke-width="1.5"/>
+        <rect x="84" y="18" width="32" height="26" rx="4" fill="#3b82f6" fill-opacity="0.3" stroke="#3b82f6" stroke-width="1.5"/>
+        <rect x="120" y="18" width="32" height="26" rx="4" fill="#3b82f6" fill-opacity="0.3" stroke="#3b82f6" stroke-width="1.5"/>
+        <rect x="156" y="18" width="32" height="26" rx="4" fill="#3b82f6" fill-opacity="0.3" stroke="#3b82f6" stroke-width="1.5"/>
+        <rect x="192" y="18" width="32" height="26" rx="4" fill="#3b82f6" fill-opacity="0.3" stroke="#3b82f6" stroke-width="1.5"/>
+        <rect x="228" y="18" width="32" height="26" rx="4" fill="#3b82f6" fill-opacity="0.3" stroke="#3b82f6" stroke-width="1.5"/>
+        <rect x="264" y="18" width="32" height="26" rx="4" fill="#3b82f6" fill-opacity="0.3" stroke="#3b82f6" stroke-width="1.5"/>
+        <text x="64" y="36" fill="currentColor" stroke="none" text-anchor="middle" font-size="12">0.7</text>
+        <text x="100" y="36" fill="currentColor" stroke="none" text-anchor="middle" font-size="12">0.1</text>
+        <text x="136" y="36" fill="currentColor" stroke="none" text-anchor="middle" font-size="12">0.9</text>
+        <text x="172" y="36" fill="currentColor" stroke="none" text-anchor="middle" font-size="12">0.4</text>
+        <text x="208" y="36" fill="currentColor" stroke="none" text-anchor="middle" font-size="12">0.8</text>
+        <text x="244" y="36" fill="currentColor" stroke="none" text-anchor="middle" font-size="12">0.2</text>
+        <text x="280" y="36" fill="currentColor" stroke="none" text-anchor="middle" font-size="12">0.6</text>
+        <text x="4" y="36" fill="currentColor" stroke="none">ANN</text>
+        <!-- SNN: sparse binary spikes over time -->
+        <path d="M48 105 H300" stroke="#94a3b8" stroke-width="1.5"/>
+        <path d="M64 105 V72 M172 105 V72 M244 105 V72" stroke="#f59e0b" stroke-width="3"/>
+        <circle cx="64" cy="72" r="4.5" fill="#f59e0b" stroke="none"/>
+        <circle cx="172" cy="72" r="4.5" fill="#f59e0b" stroke="none"/>
+        <circle cx="244" cy="72" r="4.5" fill="#f59e0b" stroke="none"/>
+        <text x="4" y="100" fill="currentColor" stroke="none">SNN</text>
+        <!-- caption -->
+        <text x="174" y="140" fill="currentColor" stroke="none" text-anchor="middle">3 spikes → only 3 weight reads</text>
+      </svg>
+      <div style="font-size: 1.05rem; margin-bottom: 0;">Binary events replace dense values: weight × spike is just a memory read.</div>
+    </div>
+
+  </div>
+
+  <!-- Row 2: update equation, spike condition, main hurdle -->
+  <div style="display: flex; align-items: center; gap: 16px; margin-top: 14px;">
+
+    <!-- Membrane update (discrete time) -->
+    <div class="math-block" data-step="4" style="flex: 1.5; padding: 12px; margin: 0; font-size: 1.2rem;">\(\displaystyle U[t] = \beta U[t-1] + W X[t] - S_{out}[t-1]\,\theta\)</div>
+
+    <!-- Spike condition -->
+    <div class="math-block" data-step="4" style="flex: 1; padding: 12px; margin: 0; font-size: 1.2rem;">\(\displaystyle S_{out}[t] = \mathbb{1}\left[U[t] > \theta\right]\)</div>
+
+    <!-- Main hurdle -->
+    <div class="panel" data-step="5" style="flex: 1.4; min-width: 0; padding: 10px 20px; margin: 0;">
+      <div style="font-size: 1.05rem; margin-bottom: 0;"><b>Hurdle:</b> \(dS/dU\) is 0 or \(\infty\), the “dead neuron” problem. Training needs surrogate gradients.</div>
+    </div>
+
+  </div>
+
+</div>
+
+</body>
+</html>
