@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Spiking Neural Networks</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+  </style>
+</head>
+<body>
+
+<div class="slide-layout" style="position: relative; padding: 0; overflow: hidden;">
+
+  <!-- Layer 1 (back): animated spike propagating through a network (SMIL animation, 6 s loop) -->
+  <svg viewBox="0 0 1280 720" style="position: absolute; left: 0; top: 0; width: 1280px; height: 720px; filter: blur(5px);" fill="none" stroke-linecap="round" font-family="sans-serif">
+
+    <!-- All connections (faint) -->
+    <g stroke="#94a3b8" stroke-width="1.5" stroke-opacity="0.2">
+      <!-- input → hidden 1 -->
+      <path d="M150 150 L450 100 M150 150 L450 270 M150 150 L450 450 M150 150 L450 620"/>
+      <path d="M150 360 L450 100 M150 360 L450 270 M150 360 L450 450 M150 360 L450 620"/>
+      <path d="M150 570 L450 100 M150 570 L450 270 M150 570 L450 450 M150 570 L450 620"/>
+      <!-- hidden 1 → hidden 2 -->
+      <path d="M450 100 L830 100 M450 100 L830 270 M450 100 L830 450 M450 100 L830 620"/>
+      <path d="M450 270 L830 100 M450 270 L830 270 M450 270 L830 450 M450 270 L830 620"/>
+      <path d="M450 450 L830 100 M450 450 L830 270 M450 450 L830 450 M450 450 L830 620"/>
+      <path d="M450 620 L830 100 M450 620 L830 270 M450 620 L830 450 M450 620 L830 620"/>
+      <!-- hidden 2 → output -->
+      <path d="M830 100 L1130 250 M830 100 L1130 470 M830 270 L1130 250 M830 270 L1130 470"/>
+      <path d="M830 450 L1130 250 M830 450 L1130 470 M830 620 L1130 250 M830 620 L1130 470"/>
+    </g>
+
+    <!-- Silent neurons (all 13 as base) -->
+    <g fill="#64748b" fill-opacity="0.55">
+      <circle cx="150" cy="150" r="22"/><circle cx="150" cy="360" r="22"/><circle cx="150" cy="570" r="22"/>
+      <circle cx="450" cy="100" r="22"/><circle cx="450" cy="270" r="22"/><circle cx="450" cy="450" r="22"/><circle cx="450" cy="620" r="22"/>
+      <circle cx="830" cy="100" r="22"/><circle cx="830" cy="270" r="22"/><circle cx="830" cy="450" r="22"/><circle cx="830" cy="620" r="22"/>
+      <circle cx="1130" cy="250" r="22"/><circle cx="1130" cy="470" r="22"/>
+    </g>
+
+    <!-- Active connections: highlighted while the spike travels along them -->
+    <g stroke="#f59e0b" stroke-width="4" opacity="0">
+      <!-- input → hidden 1 -->
+      <path d="M150 150 L450 270"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.06;0.08;0.34;0.42;1" dur="6s" repeatCount="indefinite"/></path>
+      <path d="M150 570 L450 270"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.06;0.08;0.34;0.42;1" dur="6s" repeatCount="indefinite"/></path>
+      <path d="M150 570 L450 450"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.06;0.08;0.34;0.42;1" dur="6s" repeatCount="indefinite"/></path>
+      <!-- hidden 1 → hidden 2 -->
+      <path d="M450 270 L830 270"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.24;0.26;0.54;0.62;1" dur="6s" repeatCount="indefinite"/></path>
+      <path d="M450 450 L830 270"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.24;0.26;0.54;0.62;1" dur="6s" repeatCount="indefinite"/></path>
+      <!-- hidden 2 → output -->
+      <path d="M830 270 L1130 250"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.44;0.46;0.74;0.82;1" dur="6s" repeatCount="indefinite"/></path>
+    </g>
+
+    <!-- Travelling spike dots along the active connections -->
+    <g fill="#f59e0b">
+      <!-- layer 1 -->
+      <circle r="9" cx="150" cy="150" cy-init="" opacity="0">
+        <animate attributeName="cx" values="150;150;450;450" keyTimes="0;0.06;0.22;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="150;150;270;270" keyTimes="0;0.06;0.22;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;0" keyTimes="0;0.06;0.22" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="9" cx="150" cy="570" opacity="0">
+        <animate attributeName="cx" values="150;150;450;450" keyTimes="0;0.06;0.22;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="570;570;270;270" keyTimes="0;0.06;0.22;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;0" keyTimes="0;0.06;0.22" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="9" cx="150" cy="570" opacity="0">
+        <animate attributeName="cx" values="150;150;450;450" keyTimes="0;0.06;0.22;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="570;570;450;450" keyTimes="0;0.06;0.22;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;0" keyTimes="0;0.06;0.22" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <!-- layer 2 -->
+      <circle r="9" cx="450" cy="270" opacity="0">
+        <animate attributeName="cx" values="450;450;830;830" keyTimes="0;0.24;0.42;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="270;270;270;270" keyTimes="0;0.24;0.42;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;0" keyTimes="0;0.24;0.42" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="9" cx="450" cy="450" opacity="0">
+        <animate attributeName="cx" values="450;450;830;830" keyTimes="0;0.24;0.42;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="450;450;270;270" keyTimes="0;0.24;0.42;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;0" keyTimes="0;0.24;0.42" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <!-- layer 3 -->
+      <circle r="9" cx="830" cy="270" opacity="0">
+        <animate attributeName="cx" values="830;830;1130;1130" keyTimes="0;0.44;0.62;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="270;270;250;250" keyTimes="0;0.44;0.62;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;1;0" keyTimes="0;0.44;0.62" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- Firing neurons: orange fill + expanding ring when the spike arrives -->
+    <!-- Inputs fire at t = 0.04 -->
+    <g>
+      <circle cx="150" cy="150" r="22" fill="#f59e0b" opacity="0">
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.04;0.06;0.24;0.34;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="150" cy="150" r="22" stroke="#f59e0b" stroke-width="3" opacity="0">
+        <animate attributeName="r" values="22;22;22;54;54" keyTimes="0;0.04;0.045;0.16;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0;0.8;0;0" keyTimes="0;0.04;0.045;0.16;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="150" cy="570" r="22" fill="#f59e0b" opacity="0">
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.04;0.06;0.24;0.34;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="150" cy="570" r="22" stroke="#f59e0b" stroke-width="3" opacity="0">
+        <animate attributeName="r" values="22;22;22;54;54" keyTimes="0;0.04;0.045;0.16;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0;0.8;0;0" keyTimes="0;0.04;0.045;0.16;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    <!-- Hidden layer 1 fires at t = 0.22 -->
+    <g>
+      <circle cx="450" cy="270" r="22" fill="#f59e0b" opacity="0">
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.22;0.24;0.42;0.52;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="450" cy="270" r="22" stroke="#f59e0b" stroke-width="3" opacity="0">
+        <animate attributeName="r" values="22;22;22;54;54" keyTimes="0;0.22;0.225;0.34;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0;0.8;0;0" keyTimes="0;0.22;0.225;0.34;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="450" cy="450" r="22" fill="#f59e0b" opacity="0">
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.22;0.24;0.42;0.52;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="450" cy="450" r="22" stroke="#f59e0b" stroke-width="3" opacity="0">
+        <animate attributeName="r" values="22;22;22;54;54" keyTimes="0;0.22;0.225;0.34;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0;0.8;0;0" keyTimes="0;0.22;0.225;0.34;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    <!-- Hidden layer 2 fires at t = 0.42 -->
+    <g>
+      <circle cx="830" cy="270" r="22" fill="#f59e0b" opacity="0">
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.42;0.44;0.62;0.72;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="830" cy="270" r="22" stroke="#f59e0b" stroke-width="3" opacity="0">
+        <animate attributeName="r" values="22;22;22;54;54" keyTimes="0;0.42;0.425;0.54;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0;0.8;0;0" keyTimes="0;0.42;0.425;0.54;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    <!-- Output fires at t = 0.62 -->
+    <g>
+      <circle cx="1130" cy="250" r="22" fill="#f59e0b" opacity="0">
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.62;0.64;0.84;0.94;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="1130" cy="250" r="22" stroke="#f59e0b" stroke-width="3" opacity="0">
+        <animate attributeName="r" values="22;22;22;54;54" keyTimes="0;0.62;0.625;0.74;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0;0.8;0;0" keyTimes="0;0.62;0.625;0.74;1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+  </svg>
+
+    <!-- Layer 2 (middle): membrane potential, revealed in sync with the network's firing waves (same 6 s loop) -->
+  <svg viewBox="0 0 1280 720" style="position: absolute; left: 0; top: 0; width: 1280px; height: 720px; opacity: 0.6; filter: blur(3px);" fill="none" stroke-linecap="round" stroke-linejoin="round" font-family="sans-serif" font-size="20">
+
+    <defs>
+      <!-- Reveal window: its right edge reaches each threshold crossing (x = 130, 470, 790, 1110)
+           exactly when layers fire (keyTimes 0.04, 0.22, 0.42, 0.62 of the network animation) -->
+      <clipPath id="reveal">
+        <rect x="0" y="0" width="0" height="720">
+          <animate attributeName="width" values="0;130;470;790;1110;1280;1280" keyTimes="0;0.04;0.22;0.42;0.62;0.9;1" dur="6s" repeatCount="indefinite"/>
+        </rect>
+      </clipPath>
+    </defs>
+
+    <!-- firing threshold (always visible) -->
+    <path d="M0 540 H1280" stroke="#ef4444" stroke-width="2" stroke-dasharray="8 6"/>
+    <text x="24" y="526" fill="#ef4444" stroke="none">threshold θ</text>
+
+    <!-- Group fades out at the end of the loop, together with the network -->
+    <g>
+      <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.9;0.98;1" dur="6s" repeatCount="indefinite"/>
+
+      <!-- membrane potential U[t]: integrate → spike → reset, four times, revealed left to right -->
+      <g clip-path="url(#reveal)">
+        <path d="M0 668 C50 666 100 590 130 540 L142 380 L156 700 C180 694 200 686 220 682 C300 678 400 640 470 540 L482 380 L496 700 C520 694 540 686 560 682 C640 678 720 640 790 540 L802 380 L816 700 C840 694 860 686 880 682 C960 678 1040 640 1110 540 L1122 380 L1136 700 C1160 694 1180 688 1200 684 H1280" stroke="#3b82f6" stroke-width="4"/>
+        <!-- spike segments highlighted -->
+        <path d="M130 540 L142 380 L156 700 M470 540 L482 380 L496 700 M790 540 L802 380 L816 700 M1110 540 L1122 380 L1136 700" stroke="#f59e0b" stroke-width="5"/>
+      </g>
+
+      <!-- threshold-crossing markers: each pops in at its firing wave -->
+      <circle cx="130" cy="540" r="8" fill="#f59e0b" stroke="none" opacity="0">
+        <animate attributeName="opacity" values="0;1" keyTimes="0;0.04" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="470" cy="540" r="8" fill="#f59e0b" stroke="none" opacity="0">
+        <animate attributeName="opacity" values="0;1" keyTimes="0;0.22" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="790" cy="540" r="8" fill="#f59e0b" stroke="none" opacity="0">
+        <animate attributeName="opacity" values="0;1" keyTimes="0;0.42" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="1110" cy="540" r="8" fill="#f59e0b" stroke="none" opacity="0">
+        <animate attributeName="opacity" values="0;1" keyTimes="0;0.62" calcMode="discrete" dur="6s" repeatCount="indefinite"/>
+      </circle>
+
+      <!-- thin scan line following the reveal edge -->
+      <rect x="0" y="0" width="3" height="720" fill="#f59e0b" fill-opacity="0.45" stroke="none">
+        <animate attributeName="x" values="0;130;470;790;1110;1280;1280" keyTimes="0;0.04;0.22;0.42;0.62;0.9;1" dur="6s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+  </svg>
+
+  <!-- Layer 3 (front): title, centered both horizontally and vertically -->
+  <div style="position: absolute; left: 0; top: 0; width: 1280px; height: 720px; display: flex; align-items: center; justify-content: center;">
+    <div class="title" style="font-size: 5.5rem; margin: 0; text-align: center; white-space: nowrap;">Spiking Neural Networks</div>
+  </div>
+
+  <!-- Subtitle just below the centered title -->
+  <div class="subtitle" style="position: absolute; left: 0; top: 410px; width: 1280px; font-size: 1.6rem; margin: 0; text-align: center;">Brain-inspired, event-driven and energy-efficient</div>
+
+</div>
+
+</body>
+</html>
