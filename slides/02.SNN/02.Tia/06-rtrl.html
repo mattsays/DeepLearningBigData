@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="duration-seconds" content="55"><meta name="outline-section" content="Training / Inference Procedures">
+<title>Real-time recurrent learning (RTRL)</title><style>
+:root{
+    color-scheme:light;
+    --bg:#ffffff; --fg:#11151b; --muted:#5b6472; --line:#e2e6ec; --accent:#2f6fb0;
+    --accent2:#b23a2c; --card:#f5f8fb; --cardline:#dce2ea;
+    --font:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#f1f5f9}
+
+  /* Until the first build is on screen nothing may animate: at start the runtime
+     measures the fullest build (later steps can be taller) and that probe has to
+     stay invisible, otherwise a slide flashes its last step before step 1.
+     slideui.js removes the attribute after the first painted frame. */
+  html[data-slideui-init] *,
+  html[data-slideui-init] *::before,
+  html[data-slideui-init] *::after{transition:none!important;animation:none!important}
+
+  /* ---- fixed 1280x720 canvas, scaled to the window by slideui.js ---- */
+  .slide-layout{position:absolute;left:50%;top:50%;width:1280px;height:720px;
+    transform:translate(-50%,-50%) scale(var(--slide-scale,1));transform-origin:center;
+    overflow:hidden;background:var(--bg);color:var(--fg);font-family:var(--font);
+    -webkit-font-smoothing:antialiased;container-type:size;
+    /* Bottom band reserved for the slide counter, so the number never sits on
+       content. Everything inside .slide therefore gets 68 px less height. */
+    padding:0 0 68px}
+  .slide{width:100%;height:100%;padding:34px 44px 52px;display:flex;flex-direction:column;
+    transform:scale(var(--slide-fit,1));transform-origin:top center}
+
+  /* Slide counter, drawn by the runtime inside the canvas so it scales with the
+     slide. Same look as deck-draft.html: big current number, small muted total. */
+  .slideui-counter{position:absolute;right:28px;bottom:16px;display:flex;align-items:baseline;
+    gap:7px;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums;
+    color:var(--fg);pointer-events:none;-webkit-user-select:none;user-select:none;z-index:10}
+  .slideui-counter .current-slide{font-size:38px;font-weight:650}
+  .slideui-counter .total-slides{font-size:23px;font-weight:400;color:var(--muted)}
+  body,body *{-webkit-user-select:none;user-select:none}
+  .kicker{font-size:15px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600}
+  h1{font-size:50px;line-height:1.08;margin:0 0 30px;font-weight:700;letter-spacing:-.015em}
+  .body{flex:1}
+  .title-slide h1{font-size:66px;line-height:1.04;max-width:1200px;margin-bottom:30px}
+  .title-slide h1 .hot{color:var(--accent);font-weight:800;white-space:nowrap}
+  .title-slide .lead{max-width:1000px;font-size:30px;line-height:1.4;color:var(--muted);margin:0}
+  ul{margin:0;padding-left:26px}
+  li{margin-bottom:16px;font-size:25px;line-height:1.35}
+  p{font-size:25px;line-height:1.35;margin:0 0 16px}
+  .lead{font-size:27px;color:var(--muted)}
+  .math{font-family:var(--serif);font-style:italic;font-size:30px;line-height:1.6}
+  .math sub,.math sup{font-size:.62em;font-style:italic}
+  .strip{background:var(--card);border:1px solid var(--cardline);border-radius:14px;padding:20px 28px;margin-bottom:26px}
+  .takeaway{border-left:5px solid var(--accent);background:var(--card);border-radius:0 14px 14px 0;
+            padding:20px 28px;margin-top:30px;font-size:27px;line-height:1.35}
+  .takeaway b{color:var(--accent)}
+  table{border-collapse:collapse;width:100%;font-size:22px}
+  th,td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:middle;line-height:1.25}
+  thead th{font-size:19px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;
+           border-bottom:2px solid var(--line)}
+  thead th.asis{text-transform:none;letter-spacing:0;font-size:22px;color:var(--fg);font-weight:600;font-style:italic}
+  tbody tr:last-child td{border-bottom:none}
+  td.rowlab{font-weight:600;color:var(--muted);font-size:19px;width:20%}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:start}
+  .cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:26px;align-items:stretch}
+  .panel{background:var(--card);border:1px solid var(--cardline);border-radius:14px;padding:22px 24px}
+  .panel h3{margin:0 0 12px;font-size:22px;letter-spacing:.01em}
+  .panel p{font-size:21px;line-height:1.35;margin:0}
+  .refs li{font-size:21px;margin-bottom:10px;color:var(--muted)}
+  .refs b{color:var(--fg)}
+  .nav{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;gap:16px;justify-content:center;
+       padding:10px 16px;background:var(--bg);border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+  .nav button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--cardline);
+              border-radius:8px;padding:6px 16px;cursor:pointer}
+  .nav button:hover{border-color:var(--accent)}
+  .dots{display:flex;gap:6px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+  .dot.on{background:var(--accent)}
+  .note{font-size:19px;color:var(--muted);margin-top:14px;font-style:italic}
+  /* comparison layout (S2): three cards, rows aligned across them */
+  .comparison-slide .body{display:flex;align-items:center;justify-content:center}
+  .cmp{display:grid;grid-template-columns:1.15fr 1fr 2.65fr;gap:20px;align-items:stretch;width:100%;margin:0 auto}
+  .cmp .card{border-radius:16px;padding:16px 20px 18px}
+  .cmp .group{border:1.5px solid var(--line);background:var(--card)}
+  .cmp-head{height:68px;display:flex;align-items:center;justify-content:center;
+            font-size:32px;font-style:italic;font-weight:700;letter-spacing:.01em;
+            background:var(--card);border-radius:12px 12px 0 0;margin:-16px -20px 0;
+            border:1.5px solid var(--line);border-bottom:none}
+  .cmp .group .cmp-head{font-weight:650;font-style:normal;letter-spacing:.005em}
+  .cmp-colhead{height:56px;display:flex;align-items:center;justify-content:space-around;
+               font-size:30px;font-weight:650;color:var(--fg)}
+  .cmp-colhead.three{display:grid;grid-template-columns:repeat(3,1fr);text-align:center}
+  .cmp-row{height:82px;display:flex;align-items:center;justify-content:center;text-align:center;background:transparent;border-top:1px solid var(--line);opacity:0;transform:translateY(8px);transition:opacity .4s ease,transform .4s ease}
+  .cmp-row.on{opacity:1;transform:none}
+  .cmp-row.three{display:grid;grid-template-columns:repeat(3,1fr);text-align:center}
+  .cmp-row .lab{font-size:25px;font-weight:650;color:var(--muted);line-height:1.25;padding:0 8px;text-align:center}
+  .cmp-row .v{font-size:28px;line-height:1.25;color:var(--fg);font-variant-numeric:tabular-nums}
+  .cmp .card:first-child .cmp-head{background:transparent;border-color:transparent}
+  .cmp .group .cmp-row .v{font-weight:550}
+  /* builds: elements with data-step appear one step at a time */
+  .build [data-step]{opacity:0;transform:translateY(14px);
+                     transition:opacity .5s ease, transform .5s ease}
+  .build [data-step].on{opacity:1;transform:none}
+  @keyframes model-fade-in{from{opacity:0}to{opacity:1}}
+  .build .model-group.model-enter{animation:model-fade-in .8s ease-out both}
+  @media(prefers-reduced-motion:reduce){.build .model-group.model-enter{animation:none}}
+  .build .model-group{transform:translateY(0) scale(1);
+                      transform-box:fill-box;transform-origin:center;
+                      transition:transform .6s cubic-bezier(.4,0,.2,1)}
+  .build[data-build="1"] .model-group{transform:translateY(170px) scale(1.35)}
+  .build .body > svg{max-height:78cqh;width:100%;height:auto;display:block;margin:0 auto}
+  .slide.build{padding-top:22px;max-width:1340px}
+  .build h1{margin-bottom:14px}
+  .curvature-slide .body > svg{max-width:1120px}
+  .curvature-slide .body{width:100%;min-width:0}
+  .curvature-slide h1{font-size:44px;margin-bottom:20px}
+  .curvature-slide svg text{letter-spacing:0}
+  .curvature-slide .strip{background:transparent;border:0;padding:8px 0 16px!important}
+  .robot-scene svg{max-height:58cqh;max-width:1240px}
+  .motor-scene svg{max-height:58cqh;max-width:1240px}
+  .scene-caption{display:none;text-align:center;max-width:1200px;margin:38px auto 0;font-size:32px;line-height:1.45}
+  .robot-scene[data-build="1"] .caption-1,.robot-scene[data-build="2"] .caption-2,
+  .robot-scene[data-build="3"] .caption-3,.robot-scene[data-build="4"] .caption-4{display:block}
+  .motor-scene[data-build="1"] .motor-input{stroke-width:4;opacity:1}
+  .split-slide .body{display:flex;flex-direction:column;justify-content:center}
+  .split{display:flex;gap:34px;align-items:center}
+  .split-figure{flex:0 0 64%}
+  .split-figure svg{width:100%;height:auto}
+  .split-text{flex:1 1 38%;display:flex;flex-direction:column;gap:10px;position:relative}
+  .rail{position:absolute;left:0;top:14px;width:3px;border-radius:3px;height:0;background:var(--line);
+    transition:height .55s cubic-bezier(.22,.61,.36,1)}
+  .rail-active{position:absolute;left:0;top:14px;width:3px;border-radius:3px;height:0;background:var(--accent);
+    transition:top .5s cubic-bezier(.22,.61,.36,1),height .5s cubic-bezier(.22,.61,.36,1),opacity .3s ease}
+  .step{display:none;align-items:flex-start;gap:14px;padding:10px 0 10px 22px}
+  .step.on{display:flex;animation:step-in .45s cubic-bezier(.22,.61,.36,1) both}
+  .step-num{flex:0 0 auto;font-size:34px;font-weight:700;line-height:1;color:var(--muted);
+    animation:num-in .5s cubic-bezier(.22,.61,.36,1) .06s both}
+  .step-title{font-size:25px;font-weight:650;margin:0 0 8px;line-height:1.2;color:var(--muted);
+    animation:title-in .55s cubic-bezier(.22,.61,.36,1) .14s both}
+  .step-note{display:none;font-size:23px;line-height:1.4;margin:0;color:var(--fg)}
+  .step.current .step-num,.step.current .step-title{color:var(--accent)}
+  .step.current .step-note{display:block;animation:note-in .55s ease-out .26s both}
+  @keyframes step-in{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+  @keyframes num-in{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+  @keyframes title-in{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+  @keyframes note-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .ukf-scene[data-build="4"] .ukf-target{opacity:1}
+  .choice-conclusion{display:grid;max-width:780px;margin:0 auto}
+  .choice-conclusion>.panel{grid-area:1/1;align-self:stretch;min-width:0}
+  .choice-decision{position:relative}
+  .decision-heading{position:absolute;top:40px;left:32px;right:32px;text-align:center;transition:top .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1)}
+  .decision-heading h1{margin:0;font-size:clamp(34px,4.5cqw,56px);line-height:1.15}
+  .choice-decision[data-build="1"] .decision-heading{top:50%;transform:translateY(-32px)}
+  .choice-decision[data-build="2"] .decision-heading{top:calc(50% - 65px);transform:translateY(-32px);transition-duration:.35s}
+  .choice-decision>.body{padding-top:240px;display:flex;flex-direction:column;justify-content:flex-start;gap:22px;width:min(100%,960px);margin:0 auto}
+  .choice-decision .decision-lead{text-align:center;font-size:clamp(34px,4cqw,50px);line-height:1.2;font-weight:750;color:var(--accent);margin:24px auto 0;max-width:1100px}
+  .decision-reason{display:flex;gap:22px;align-items:flex-start;padding:22px 26px;background:var(--card);border:1px solid var(--cardline);border-radius:14px}
+  .decision-reason>span{font-size:32px;font-weight:700;color:var(--accent);line-height:1.2}
+  .decision-reason h3{font-size:26px;margin:0 0 8px}
+  .decision-reason p{font-size:23px;line-height:1.4;color:var(--muted);margin:0}
+  .choice-decision[data-build="2"] .decision-lead{transition-delay:.35s;transition-duration:.3s}
+  .choice-decision[data-build="3"] .decision-reason[data-step="3"]{transition-delay:.7s}
+  
+  @media(prefers-reduced-motion:reduce){.decision-heading,.choice-decision [data-step]{transition:none!important}}
+  .limit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+  .limit-grid .panel{padding:22px 24px}
+  .limit-grid .panel h3{font-size:24px;margin:0 0 10px;color:var(--accent)}
+  .limit-grid .panel p{font-size:21px;line-height:1.4}
+  
+  
+  .ukf-scene[data-build="4"] .ukf-rocket-preview{opacity:0}
+  .ukf-rocket-preview{transition:opacity .3s ease}
+  @media(prefers-reduced-motion:reduce){
+    .ukf-scene[data-build="4"] .ukf-rocket-preview{opacity:1}
+    .ukf-scene[data-build="4"] .ukf-target{opacity:0}
+  }
+  .ukf-scene .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(380px,440px);gap:30px;align-items:center;width:100%}
+  .ukf-scene .split-figure{min-width:0}
+  .ukf-scene .ukf-figure{display:block;width:100%;max-width:none;height:auto;max-height:none}
+  .ukf-scene .split-text{min-width:0;gap:4px}
+  .ukf-scene .step>div{min-width:0}
+  .ukf-scene .step{padding:8px 0 8px 16px;gap:12px}
+  .ukf-scene .step-title{font-size:28px;line-height:1.22}
+  .ukf-scene .step-note{font-size:26px;line-height:1.35;overflow-wrap:break-word}
+  .ukf-scene .split-figure>p{font-size:19px!important;line-height:1.35;margin:12px 0 0}
+  .ukf-scene{padding-bottom:44px}
+  .slide.ukf-scene{max-width:1560px}
+  .ukf-scene .body{padding:18px 0}
+  .ukf-scene .body{display:flex;align-items:center}
+  
+  
+  @media(prefers-reduced-motion:reduce){.ukf-scene *{animation:none!important;transition:none!important}}
+  @media(prefers-reduced-motion:reduce){.split-slide *{animation:none!important;transition:none!important}}
+  .motor-scene[data-build="4"] .wheel-spin{transform-origin:0 0;animation:motor-spin 2s linear infinite}
+  .motor-scene[data-build="4"] .encoder-signal{stroke-dasharray:12 8;animation:encoder-flow 1s linear infinite}
+  @keyframes motor-spin{to{transform:rotate(360deg)}}
+  @keyframes encoder-flow{to{stroke-dashoffset:-40}}
+  @media(prefers-reduced-motion:reduce){.motor-scene *{animation:none!important;transition:none!important}}
+  .robot-scene[data-build="3"] .corrected-position{animation:scene-correct 1.3s ease-out both}
+  .robot-scene[data-build="4"] .prediction-overlay{opacity:0!important}
+  @keyframes scene-correct{from{transform:translate(-110px,40px)}to{transform:translate(0,0)}}
+  @keyframes scene-drive{0%,15%{transform:translate(0,0)}85%,100%{transform:translate(100px,-45px)}}
+  @media(prefers-reduced-motion:reduce){.robot-scene *{animation:none!important;transition:none!important}}
+  @keyframes odom-move{from{transform:translateX(-214px)}to{transform:translateX(0)}}
+  @keyframes range-reveal{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes pose-correction{from{transform:translateX(-137px)}to{transform:translateX(0)}}
+  .ekf-animation[data-build="1"] .odom-pose{animation:odom-move 1.6s ease-in-out both}
+  .ekf-animation[data-build="2"] .range-bar{transform-box:fill-box;transform-origin:left center;animation:range-reveal .9s ease-out .5s both}
+  .ekf-animation[data-build="2"] .range-bar.measured{animation-delay:1.5s}
+  .ekf-animation[data-build="3"] .updated-pose{animation:pose-correction 1.3s ease-in-out .5s both}
+  @media(prefers-reduced-motion:reduce){
+    .ekf-animation .odom-pose,.ekf-animation .range-bar,.ekf-animation .updated-pose{animation:none!important}
+  }
+  .applications .body{display:flex;align-items:center}
+  .applications .cols{width:100%}
+  .application{padding:32px;border-top:4px solid var(--accent)}
+  .application h2{font-size:42px;margin:0 0 18px}
+  .application .fit{font-size:28px;line-height:1.35;margin:0 0 30px}
+  .application .examples{font-size:25px;line-height:1.5;margin:0;padding-top:22px;border-top:1px solid var(--line)}
+  .app-layout{display:grid;grid-template-columns:.85fr 1.3fr;gap:36px;align-items:center;width:100%}
+  .app-copy h2{font-size:34px;margin:0 0 24px}
+  .app-copy p{font-size:28px;margin-bottom:24px}
+  .app-visual{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:20px}
+  .app-visual svg{width:100%;display:block}
+  .app-caption{font-size:19px!important;text-align:center;color:var(--muted);margin:14px 0 0!important}
+  @media(prefers-reduced-motion:reduce){.app-visual svg{animation:none}}
+
+  /* CKF example: keep the conclusion below the figure and explanation. */
+  .ckf-scene .body{display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:24px;padding:20px 0}
+  .ckf-scene .app-layout{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:40px}
+  .ckf-scene .app-copy,.ckf-scene .app-visual{min-width:0}
+  .ckf-scene .app-copy h2{font-size:32px;line-height:1.2;margin:0 0 18px}
+  .ckf-scene .app-copy p{font-size:25px;line-height:1.35;margin:0 0 18px;overflow-wrap:break-word}
+  .ckf-scene .app-visual{padding:12px;background:transparent;border:0;border-radius:0}
+  .ckf-scene .app-visual svg{height:auto;max-height:340px}
+  .ckf-scene .takeaway{margin:0;font-size:25px;line-height:1.35;padding:16px 24px}
+  
+
+  .ph{border:2px dashed var(--cardline);border-radius:14px;background:var(--card);
+      display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);
+      font-size:22px;padding:24px}
+  @media print{
+    .nav{display:none}
+    .slide{page-break-after:always;min-height:auto;padding:24px}
+  }
+.curvature-slide .derivations{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;margin-top:10px}
+.curvature-slide .derivation{min-width:0;font-size:22px;line-height:1.35}
+.curvature-slide .derivation p{font-size:22px;margin:0 0 10px}
+.curvature-slide .derivation mjx-container[display="true"]{margin:12px 0;text-align:left!important}
+.curvature-slide .body > svg{max-height:35cqh}
+.curvature-slide .exact-result{font-size:24px;text-align:center;margin-top:16px}
+
+/* MathJax SVGs use their own em dimensions, independently of slide graphics. */
+.curvature-slide mjx-container svg{width:auto!important;height:auto!important;max-width:100%;max-height:none!important;display:inline-block!important;margin:0!important}
+.curvature-slide mjx-container{font-size:100%!important}
+.curvature-slide .strip p:first-child{font-size:27px!important}
+.curvature-slide .strip p:last-child{font-size:30px!important}
+.curvature-slide{padding-top:24px;padding-bottom:100px}
+.curvature-slide h1{margin-bottom:12px}
+.curvature-slide .strip{padding-bottom:8px!important;margin-bottom:6px!important}
+.curvature-slide .strip p:last-child{margin-top:10px!important}
+.curvature-slide .body > svg{max-height:29cqh}
+.curvature-slide .derivations{margin-top:6px;gap:28px}
+.curvature-slide .derivation p{font-size:21px;margin-bottom:6px}
+.curvature-slide .derivation mjx-container[display="true"]{margin:8px 0}
+.curvature-slide .exact-result{margin-top:10px;font-size:23px;line-height:1.35;padding-bottom:8px}
+.curvature-slide .exact-result p{font-size:20px!important;margin-top:6px!important}
+.curvature-slide .method-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}
+.curvature-slide .method-column{min-width:0;background:var(--card);border-radius:18px;padding:10px 14px 16px}
+.curvature-slide .method-column>svg{display:block;width:100%;height:auto;max-height:28cqh;margin:0 auto}
+.curvature-slide .method-column .derivation{padding:10px 14px 0;font-size:20px}
+.curvature-slide .method-column .derivation p{font-size:20px;line-height:1.3}
+.curvature-slide .method-column mjx-container[display="true"]{margin:10px 0}
+
+.curvature-slide .method-column>svg{max-height:36cqh;width:100%;height:auto}
+.curvature-slide .method-column .derivation{padding:4px 14px 0}
+.curvature-slide .method-column .derivation p{margin-bottom:4px}
+.curvature-slide .method-column mjx-container[display="true"]{margin:8px 0}
+.radar-setup mjx-container{font-size:100%!important}
+.radar-setup mjx-container svg{width:auto!important;height:auto!important;max-width:100%;max-height:none!important;display:inline-block!important;margin:0!important}
+.radar-setup mjx-container[display="true"]{margin:16px 0;text-align:left!important}
+.chart-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 8px}
+.chart-tools button{font:inherit;font-size:16px;color:var(--fg);background:var(--card);border:1px solid var(--cardline);border-radius:8px;padding:7px 12px;cursor:pointer}
+.chart-tools button:hover,.chart-tools button:focus-visible{border-color:var(--accent)}
+.chart-tools span{font-size:15px;color:var(--muted)}
+.cost-slide .body>svg{touch-action:none;cursor:grab}
+.cost-slide .body{display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:16px}
+.cost-slide .body>p{text-align:center;margin:0!important}
+.cost-slide .takeaway{text-align:center;margin-top:0!important}
+.cost-slide .body>svg:active{cursor:grabbing}
+/* S3: cost of accuracy, one row per filter: time bar on the left, RMSE dot on the right */
+.tradeoff-slide h1{font-size:44px;margin-bottom:8px}
+.tradeoff-slide .body{display:flex;flex-direction:column;justify-content:center;gap:14px}
+.tradeoff-slide .tradeoff-lead{font-size:20px;line-height:1.3;color:var(--muted);text-align:center;margin:0}
+.tradeoff-slide .body>svg{width:100%;max-width:1100px;max-height:none;height:auto;display:block;margin:0 auto}
+.tradeoff-slide .tradeoff-note{font-size:17px;line-height:1.35;color:var(--muted);text-align:center;margin:0}
+.tradeoff-slide .tradeoff-note b{color:var(--fg)}
+.tradeoff-slide .takeaway{font-size:22px;line-height:1.32;padding:13px 22px;margin:2px 0 0}
+/* S3: cost only, measured on the thesis ship benchmark */
+@keyframes cost-bar-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes cost-value-in{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+.tradeoff-slide .cost-bar{transform-box:fill-box;transform-origin:left center;animation:cost-bar-grow .9s cubic-bezier(.2,.85,.3,1) both}
+.tradeoff-slide .cost-value{animation:cost-value-in .4s ease-out both}
+@media (prefers-reduced-motion: reduce){.tradeoff-slide .cost-bar,.tradeoff-slide .cost-value{animation:none}}
+/* S3: accuracy of the four filters as the radar bearing noise grows */
+.acc-slide h1{font-size:44px;margin-bottom:8px}
+.acc-slide .body{display:flex;flex-direction:column;justify-content:center;gap:8px}
+.acc-slide .acc-lead{font-size:20px;line-height:1.3;color:var(--muted);text-align:center;margin:0}
+.acc-panels{display:flex;align-items:center;justify-content:center;gap:14px}
+.acc-panels>svg{flex:0 1 580px;min-width:0}
+.acc-divider{flex:0 0 1px;align-self:stretch;background:var(--line);margin:12px 0}
+.acc-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 24px;font-size:14px;color:var(--muted);margin:0}
+.acc-legend span{display:flex;align-items:center;gap:7px}
+.acc-legend i{display:inline-block;width:18px;height:3px;border-radius:2px}
+.experiment-slide .body{display:flex;flex-direction:column;justify-content:center;gap:26px}
+.experiment-slide .panel{padding:26px}
+.experiment-slide .panel h3{font-size:25px;color:var(--accent);margin-bottom:18px}
+.experiment-slide .panel p{font-size:23px;line-height:1.45}
+.experiment-slide .experiment-settings{font-size:19px;color:var(--muted);line-height:1.5;margin:0}
+.experiment-slide .body{gap:22px}
+.experiment-slide .cols{gap:22px;align-items:stretch}
+.experiment-slide .panel{padding:24px 26px;border:1px solid var(--cardline);border-radius:14px;background:var(--card)}
+.experiment-slide .panel h3{font-size:24px;line-height:1.3;margin:0 0 14px;color:var(--accent)}
+.experiment-slide .panel p{font-size:23px;line-height:1.4}
+.experiment-slide .experiment-value{font-size:32px!important;font-weight:750;color:var(--accent);margin:14px 0!important}
+.experiment-slide .experiment-parameters{display:grid;grid-template-columns:.65fr 1.2fr 1.2fr;gap:22px}
+.experiment-slide .experiment-parameters .panel h3{font-size:20px;margin-bottom:10px}
+.experiment-slide .experiment-parameters .panel p{font-size:27px;font-weight:650;color:var(--fg)}
+.experiment-slide .uncertainty-section .panel{border-top:3px solid var(--accent)}
+.experiment-slide .uncertainty-section .panel:last-child{border-top-color:var(--muted)}
+.experiment-slide .methodology-section{border-top:1px solid var(--line);padding-top:20px}
+.experiment-slide .methodology-section .panel{background:transparent;border:0;border-radius:0;padding:0 6px}
+.experiment-slide .methodology-section .panel h3{color:var(--fg);font-size:22px}
+.experiment-slide .methodology-section .panel p{font-size:21px;color:var(--muted)}
+.experiment-slide .experiment-parameters{background:var(--card);border-radius:14px;padding:18px 24px;gap:24px}
+.experiment-slide .experiment-parameters .panel{background:transparent;border:0;border-radius:0;padding:0}
+.experiment-slide .experiment-parameters .panel h3{color:var(--muted);font-size:17px;letter-spacing:.06em;text-transform:uppercase}
+
+.experiment-settings .settings-title{font-size:18px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.experiment-settings .settings-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.experiment-settings .setting{background:var(--card);border-radius:12px;padding:16px 18px}
+.experiment-settings .setting-label{display:block;font-size:17px;color:var(--muted);margin-bottom:6px}
+.experiment-settings .setting-value{display:block;font-size:24px;font-weight:700;line-height:1.3;color:var(--fg)}
+
+.experiment-slide.build [data-step]{transform:translateY(20px);transition:opacity .55s ease,transform .55s cubic-bezier(.22,.61,.36,1),border-color .4s ease}
+.experiment-slide.build [data-step].on{transform:none}
+.experiment-slide[data-build="2"] .panel[data-step="2"],
+.experiment-slide[data-build="3"] .panel[data-step="3"],
+.experiment-slide[data-build="4"] .panel[data-step="4"]{border-color:var(--accent)}
+@media(prefers-reduced-motion:reduce){.experiment-slide.build [data-step]{transform:none;transition:none}}
+
+.radar-setup .radar-closing{position:relative;margin-top:24px;text-align:center;min-height:110px}
+.radar-setup .radar-premise,.radar-setup .radar-question{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.radar-setup[data-build="3"] .radar-premise{opacity:0;transform:translateY(-10px);pointer-events:none}
+.radar-wave{transform-box:fill-box;transform-origin:center;animation:radar-wave 3s linear infinite}
+.radar-wave.delayed{animation-delay:-1.5s}
+.radar-echo{transform-box:fill-box;transform-origin:center;animation:radar-echo 3s linear infinite}
+.radar-echo.delayed{animation-delay:-1.5s}
+.radar-setup [class^="radar-"]{animation-play-state:paused}
+.radar-setup.radar-active [class^="radar-"]{animation-play-state:running}
+@keyframes radar-wave{0%{transform:scale(.03);opacity:0}8%{opacity:.6}68%{transform:scale(1);opacity:.6}90%{opacity:.45}100%{transform:scale(1.45);opacity:0}}
+@keyframes radar-echo{0%,67%{transform:scale(.65);opacity:0}68%{transform:scale(.65);opacity:.85}88%,100%{transform:scale(1.8);opacity:0}}
+@media(prefers-reduced-motion:reduce){.radar-setup [class^="radar-"]{animation:none!important}.radar-sweep,.radar-wave,.radar-echo,.radar-packet{display:none}}
+@media print{.radar-sweep,.radar-wave,.radar-echo,.radar-packet{display:none}}
+.nav{justify-content:center}
+.nav #counter{position:fixed;right:28px;bottom:14px;left:auto;font-family:var(--font);font-size:30px;font-weight:650;color:var(--fg);line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums}
+.nav .dots{margin:0 auto;justify-content:center}
+
+.nav{border:0;background:transparent;padding:0;height:0;pointer-events:none}
+.nav #counter{display:flex;align-items:baseline;gap:7px;bottom:18px;right:28px}
+#counter .current-slide{font-size:38px;font-weight:650;color:var(--fg)}
+#counter .total-slides{font-size:23px;font-weight:400;color:var(--muted)}
+@keyframes ckf-question-enter{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+.ckf-question h1{opacity:0}
+.ckf-question.question-visible h1{animation:ckf-question-enter .85s cubic-bezier(.22,.61,.36,1) both}
+@media(prefers-reduced-motion:reduce){.ckf-question h1{opacity:1}.ckf-question.question-visible h1{animation:none}}
+
+  
+  /* ---- canvas normalisation: the slide is the canvas, not a page ---- */
+  .slide.build,.slide.ukf-scene,.slide.curvature-slide{max-width:none}
+  .slide.curvature-slide{padding-bottom:52px}
+  .slide.ukf-scene{padding-bottom:40px}
+  .slide-layout .slide{overflow:visible}
+
+
+/* SNN chapter: the same canvas, typography and build contract as the reference. */
+.snn-slide{padding:26px 52px 38px!important}
+.snn-slide h1{font-size:46px;line-height:1.09;margin:0 0 20px;letter-spacing:-.018em}
+.snn-slide .kicker{font-size:14px;letter-spacing:.13em;margin:0 0 10px}
+.snn-slide .body{min-height:0;display:flex;flex-direction:column}
+.snn-slide .lead{font-size:25px;line-height:1.35;margin:0 0 18px}
+.snn-slide .takeaway{font-size:24px;line-height:1.35;padding:15px 22px;margin-top:20px}
+.snn-slide .source{position:absolute;left:52px;right:115px;bottom:5px;margin:0;color:var(--muted);font-size:13px;line-height:1.25}
+.snn-slide .source a{color:inherit;text-decoration:none}
+.snn-slide .body>svg{width:100%;max-height:none;margin:0;flex-shrink:0}
+.snn-slide svg text{font-family:var(--font);fill:var(--fg)}
+.snn-slide svg .muted{fill:var(--muted)}
+.snn-slide svg .blue{fill:var(--accent)}
+.snn-slide svg .red{fill:var(--accent2)}
+.snn-slide svg .axis{stroke:var(--line);stroke-width:1.5;fill:none}
+.snn-slide svg .guide{stroke:var(--line);stroke-width:1.5;stroke-dasharray:5 5;fill:none}
+.snn-slide svg .signal{stroke:var(--accent);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.snn-slide svg .signal-red{stroke:var(--accent2);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.snn-slide svg .node{fill:var(--card);stroke:var(--cardline);stroke-width:1.5}
+.snn-slide svg .math-label{font-family:var(--serif);font-style:italic}
+.snn-slide .cols{gap:44px;align-items:start}
+.snn-slide .cols h2{font-size:31px;margin:0 0 12px;color:var(--accent)}
+.snn-slide .cols p{font-size:23px;line-height:1.4;margin:0 0 14px}
+.snn-slide .math{font-size:31px;line-height:1.4}
+.snn-slide .eyebrow{font-size:17px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.snn-slide .rule{border-top:1px solid var(--line);padding-top:18px;margin-top:18px}
+.snn-slide .metric{font-size:42px;font-weight:700;color:var(--accent);letter-spacing:-.025em}
+.snn-slide .metric-label{font-size:20px;color:var(--muted);margin-top:5px}
+.snn-slide .metrics{display:flex;gap:50px;align-items:start}
+.snn-slide .formula-strip{display:flex;align-items:center;justify-content:space-between;gap:22px;background:var(--card);border:1px solid var(--cardline);border-radius:14px;padding:18px 24px}
+.snn-slide .formula-strip p{margin:0;font-size:22px}
+.snn-slide .formula-strip .math{font-size:30px}
+.snn-slide .formula-strip p.eyebrow{font-size:15px}
+.snn-slide .formula-strip p.energy-number{font-size:40px;line-height:1.05}
+.snn-slide .formula-strip p.energy-copy{font-size:20px}
+.snn-slide .case-photo{width:100%;height:280px;object-fit:contain;display:block}
+.snn-slide .photo-caption{font-size:14px!important;line-height:1.3!important;color:var(--muted);margin:8px 0 0!important}
+.snn-slide .app-split{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;align-items:center}
+.snn-slide .app-split p{font-size:24px;line-height:1.4}
+.snn-slide .app-split h2{font-size:30px;line-height:1.2;color:var(--accent);margin:0 0 15px}
+.snn-slide .case-photo.wide{height:260px;object-fit:contain}
+.snn-slide .tactile-photo{width:100%;height:175px;object-fit:contain;display:block}
+.snn-slide .limitations{display:flex;flex-direction:column;gap:0}
+.snn-slide .lim-row{display:grid;grid-template-columns:60px 275px 1fr;gap:22px;align-items:center;border-bottom:1px solid var(--line);padding:22px 0}
+.snn-slide .lim-row:first-child{padding-top:4px}
+.snn-slide .lim-row:last-child{border:0}
+.snn-slide .lim-num{font-size:33px;color:var(--accent);font-weight:650}
+.snn-slide .lim-row h2{font-size:26px;margin:0}
+.snn-slide .lim-row p{font-size:23px;line-height:1.35;margin:0;color:var(--muted)}
+.snn-slide .temporal-caption{display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:8px}
+.snn-slide .temporal-caption p{font-size:21px;line-height:1.3;margin:0}
+.snn-slide .build-path{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .85s cubic-bezier(.22,.61,.36,1)}
+.snn-slide [data-step].on .build-path,.snn-slide .build-path.on{stroke-dashoffset:0}
+.snn-slide .count-bar{transform:scaleX(0);transform-origin:left;transform-box:fill-box;transition:transform .7s cubic-bezier(.22,.61,.36,1)}
+.snn-slide [data-step].on .count-bar{transform:scaleX(1)}
+.snn-slide .signal-dot{transform-box:fill-box;transform-origin:center;transition:transform .4s ease}
+.snn-slide [data-step].on .signal-dot{animation:snn-dot .65s ease-out 1}
+@keyframes snn-dot{0%{transform:scale(.6)}65%{transform:scale(1.4)}100%{transform:scale(1)}}
+.snn-slide .energy-number{font-size:62px;font-weight:700;letter-spacing:-.04em;color:var(--accent);margin:0}
+.snn-slide .energy-copy{font-size:22px;line-height:1.4;color:var(--muted);margin:6px 0 0}
+@media(prefers-reduced-motion:reduce){.snn-slide [data-step],.snn-slide .build-path,.snn-slide .count-bar{transition:none!important}.snn-slide .signal-dot{animation:none!important}}
+
+
+.detail-slide .lead{font-size:23px;margin:0 0 14px}
+.detail-slide .formula-strip{padding:15px 22px}
+.detail-slide .formula-strip .math{font-size:30px}
+.detail-slide .detail-line{font-size:22px;line-height:1.35;margin:17px 0 0}
+.detail-slide .takeaway{font-size:23px;line-height:1.3;margin-top:17px}
+.detail-slide .local-weight{stroke-width:3;transition:stroke-width .65s ease}
+.detail-slide [data-step].on .local-weight.strong{stroke-width:8}
+.detail-slide [data-step].on .local-weight.weak{stroke-width:1.5}
+.detail-slide .highlight-cell{fill:var(--card);stroke:var(--cardline);stroke-width:1.5}
+.audio-detail .scan{opacity:0;stroke:var(--accent2);stroke-width:2}
+.audio-detail[data-build="2"] .scan{opacity:1;animation:audio-scan 1.8s linear both}
+.audio-detail .wave-progress{transform-box:fill-box;transform-origin:left;transform:scaleX(1)}
+.audio-detail[data-build="2"] .wave-progress{animation:audio-progress 1.8s linear both}
+.audio-detail .audio-event{opacity:1;transform-box:fill-box;transform-origin:center}
+.audio-detail[data-build="2"] .audio-event{animation:audio-event .3s ease-out var(--delay,0s) both}
+.audio-detail[data-build="3"] .evidence-bar{animation:audio-progress 1.2s cubic-bezier(.22,.61,.36,1) both}
+.audio-detail .evidence-bar{transform-box:fill-box;transform-origin:left}
+.audio-detail[data-build="4"] .decision-word{animation:audio-decision .65s ease-out both}
+@keyframes audio-scan{from{transform:translateX(0)}to{transform:translateX(325px)}}
+@keyframes audio-progress{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes audio-event{from{opacity:0;transform:scaleY(.1)}to{opacity:1;transform:scaleY(1)}}
+@keyframes audio-decision{0%{opacity:.3;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.detail-slide .local-weight,.audio-detail .scan,.audio-detail .wave-progress,.audio-detail .audio-event,.audio-detail .evidence-bar,.audio-detail .decision-word{animation:none!important;transition:none!important}}
+
+</style><script>
+/* Estimation & Filtering slide runtime (SlideUI).
+   One fixed 1280x720 canvas per slide, scaled to the window.
+   Steps live in data-step="N" (same N appears together) and data-steps="K" on the
+   slide. The runtime keeps data-build and the .on class in sync, so the CSS of each
+   slide can react to the current build.
+   At the last step it asks the parent player to move on: a slide never loads another
+   file by itself. In the editor preview window.__SLIDEUI.showAll shows every step. */
+(function () {
+  'use strict';
+
+  var opts = window.__SLIDEUI || {};
+  /* Freeze transitions before the body is parsed (the CSS reads this attribute). */
+  document.documentElement.setAttribute('data-slideui-init', '');
+  var layout = null;
+  var section = null;
+  var steps = 1;
+  var startMatch = location.hash.match(/^#(\d+)$/);
+  var build = 1;
+  var fit = 1;
+  var robotFrame = null;
+  var ukfFlying = false;
+  var robot = null;
+  var ukf = null;
+  var mathLoading = false;
+
+  var reducedMotion = function () { return matchMedia('(prefers-reduced-motion: reduce)').matches; };
+  var find = function (root, selector) { return root.matches(selector) ? root : root.querySelector(selector); };
+  var notify = function (action) {
+    if (window.parent !== window) window.parent.postMessage({ slideui: action }, '*');
+  };
+  // F: schermo intero. Dentro un iframe (player, anteprima) la richiesta va inoltrata
+  // alla pagina che lo contiene, che è l'unica autorizzata a entrare in fullscreen.
+  var toggleFullscreen = function () {
+    if (window.parent !== window) { notify('fullscreen'); return; }
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+  };
+
+  /* --------------------------------------------------------------- geometry */
+  function fitWindow() {
+    var scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    document.documentElement.style.setProperty('--slide-scale', String(scale));
+  }
+
+  function scaleFactor() {
+    var rect = section.getBoundingClientRect();
+    return section.offsetWidth ? rect.width / section.offsetWidth : 1;
+  }
+
+  /* If a slide is a little taller than 720 px, shrink it just enough to fit. The
+     scale is locked at the tallest build, so text does not jump between steps. */
+  function fitTo(height, width, exact) {
+    var availableH = section.clientHeight;
+    var availableW = section.clientWidth;
+    var needed = 1;
+    if (height > availableH && availableH > 0) needed = Math.min(needed, availableH / height);
+    if (width > availableW && availableW > 0) needed = Math.min(needed, availableW / width);
+    if (needed < 1) needed *= 0.995;
+    if (exact) fit = needed;
+    else if (needed < fit) fit = needed;
+    section.style.setProperty('--slide-fit', fit.toFixed(4));
+  }
+
+  function autoFit() {
+    if (!section) return;
+    fitTo(section.scrollHeight, section.scrollWidth, false);
+  }
+
+  /* Each build can be a different height (captions swap, blocks appear), so the
+     scale is the one of the tallest build. The slide is hidden and restored in the
+     same task, so this probe is never painted. A full measurement resets the scale,
+     so a transient layout (MathJax mid-typeset) cannot shrink the slide for good. */
+  function measureBuilds() {
+    if (!section) return;
+    var wanted = build;
+    var tallest = 0;
+    var widest = 0;
+    section.style.visibility = 'hidden';
+    for (var b = 1; b <= steps; b++) {
+      build = b;
+      paint();
+      tallest = Math.max(tallest, section.scrollHeight);
+      widest = Math.max(widest, section.scrollWidth);
+    }
+    build = wanted;
+    paint();
+    section.style.visibility = '';
+    fitTo(tallest, widest, true);
+  }
+
+  /* ------------------------------------------------------------ slide parts */
+  function initChart(slide) {
+    var costSlide = find(slide, '.cost-slide');
+    if (!costSlide) return;
+    var radarChart = costSlide.querySelector('.body > svg');
+    if (!radarChart) return;
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var axes = radarChart.querySelector('g');
+    if (!axes) return;
+    var series = Array.prototype.slice.call(radarChart.children)
+      .filter(function (el) { return el.tagName.toLowerCase() === 'g'; }).slice(1);
+    var makeSvg = function (name, attrs, text) {
+      var el = document.createElementNS(svgNS, name);
+      Object.keys(attrs).forEach(function (key) { el.setAttribute(key, attrs[key]); });
+      if (text !== undefined) el.textContent = text;
+      return el;
+    };
+    var chartDefs = makeSvg('defs', {});
+    var plotClip = makeSvg('clipPath', { id: 'radar-chart-clip' });
+    plotClip.append(makeSvg('rect', { x: 100, y: 65, width: 850, height: 300 }));
+    chartDefs.append(plotClip);
+    radarChart.prepend(chartDefs);
+    var chartMarks = [];
+    var fromOriginal = function (x, y) { return [25 + (x - 100) * 1175 / 850, (365 - y) * 850 / 300]; };
+    series.forEach(function (group) {
+      group.removeAttribute('data-step');
+      var clipped = makeSvg('g', { 'clip-path': 'url(#radar-chart-clip)' });
+      Array.prototype.forEach.call(group.children, function (el) {
+        if (el.matches('polygon, polyline')) {
+          var points = el.getAttribute('points').trim().split(/\s+/).map(function (pair) {
+            return fromOriginal.apply(null, pair.split(',').map(Number));
+          });
+          chartMarks.push({ el: el, points: points });
+          clipped.append(el);
+        } else if (el.matches('circle')) {
+          var cx = Number(el.getAttribute('cx')), cy = Number(el.getAttribute('cy'));
+          chartMarks.push({ el: el, points: [fromOriginal(cx, cy)] });
+          clipped.append(el);
+        }
+      });
+      group.prepend(clipped);
+    });
+    var chartRange = [25, 1200, 0, 850];
+    function drawRadarChart() {
+      var xmin = chartRange[0], xmax = chartRange[1], ymin = chartRange[2], ymax = chartRange[3];
+      var px = function (x) { return 100 + (x - xmin) / (xmax - xmin) * 850; };
+      var py = function (y) { return 365 - (y - ymin) / (ymax - ymin) * 300; };
+      var format = function (value) {
+        return Number(value.toFixed(xmax - xmin < 10 || ymax - ymin < 10 ? 2 : 1)).toString();
+      };
+      axes.replaceChildren();
+      var xticks = xmin === 25 && xmax === 1200
+        ? [25, 200, 400, 600, 800, 1000, 1200]
+        : Array.from({ length: 6 }, function (_, i) { return xmin + (xmax - xmin) * i / 5; });
+      var yticks = ymin === 0 && ymax === 850
+        ? [0, 200, 400, 600, 800]
+        : Array.from({ length: 6 }, function (_, i) { return ymin + (ymax - ymin) * i / 5; });
+      yticks.forEach(function (y) {
+        axes.append(makeSvg('path', { d: 'M100 ' + py(y) + ' H950', stroke: 'var(--line)' }));
+        axes.append(makeSvg('text', { x: 80, y: py(y) + 7, 'text-anchor': 'end' }, format(y)));
+      });
+      xticks.forEach(function (x) {
+        axes.append(makeSvg('text', { x: px(x), y: 398, 'text-anchor': 'middle' }, format(x)));
+      });
+      axes.append(makeSvg('text', { x: 100, y: 30 }, 'Position RMSE (m), first 30 updates'));
+      axes.append(makeSvg('text', { x: 525, y: 437, 'text-anchor': 'middle' },
+        'Initial position standard deviation per axis (m)'));
+      chartMarks.forEach(function (mark) {
+        var el = mark.el, points = mark.points;
+        if (el.tagName.toLowerCase() === 'circle') {
+          el.setAttribute('cx', px(points[0][0]));
+          el.setAttribute('cy', py(points[0][1]));
+        } else {
+          el.setAttribute('points', points.map(function (p) { return px(p[0]) + ',' + py(p[1]); }).join(' '));
+        }
+      });
+    }
+    function zoomRadarChart(factor, ax, ay) {
+      ax = ax === undefined ? .5 : ax;
+      ay = ay === undefined ? .5 : ay;
+      var width = Math.max(.5, Math.min(2350, (chartRange[1] - chartRange[0]) * factor));
+      var height = Math.max(.05, Math.min(1700, (chartRange[3] - chartRange[2]) * factor));
+      var x = chartRange[0] + ax * (chartRange[1] - chartRange[0]);
+      var y = chartRange[2] + ay * (chartRange[3] - chartRange[2]);
+      chartRange = [x - ax * width, x + (1 - ax) * width, y - ay * height, y + (1 - ay) * height];
+      drawRadarChart();
+    }
+    function resetRadarChart() {
+      chartRange = [25, 1200, 0, 850];
+      drawRadarChart();
+    }
+    var chartPoint = function (event) {
+      return new DOMPoint(event.clientX, event.clientY).matrixTransform(radarChart.getScreenCTM().inverse());
+    };
+    radarChart.addEventListener('wheel', function (event) {
+      var p = chartPoint(event);
+      if (p.x < 100 || p.x > 950 || p.y < 65 || p.y > 365) return;
+      event.preventDefault();
+      zoomRadarChart(Math.exp(Math.max(-.3, Math.min(.3, event.deltaY * .002))),
+        (p.x - 100) / 850, (365 - p.y) / 300);
+    }, { passive: false });
+    var chartDrag = null;
+    radarChart.addEventListener('pointerdown', function (event) {
+      if (event.button !== 0) return;
+      var p = chartPoint(event);
+      if (p.x < 100 || p.x > 950 || p.y < 65 || p.y > 365) return;
+      event.preventDefault();
+      chartDrag = { point: p, range: chartRange.slice() };
+      radarChart.setPointerCapture(event.pointerId);
+    });
+    radarChart.addEventListener('pointermove', function (event) {
+      if (!chartDrag) return;
+      var p = chartPoint(event);
+      var r = chartDrag.range;
+      var dx = (p.x - chartDrag.point.x) / 850 * (r[1] - r[0]);
+      var dy = (p.y - chartDrag.point.y) / 300 * (r[3] - r[2]);
+      chartRange = [r[0] - dx, r[1] - dx, r[2] + dy, r[3] + dy];
+      drawRadarChart();
+    });
+    radarChart.addEventListener('pointerup', function () { chartDrag = null; });
+    radarChart.addEventListener('pointercancel', function () { chartDrag = null; });
+    radarChart.addEventListener('lostpointercapture', function () { chartDrag = null; });
+    radarChart.addEventListener('dblclick', resetRadarChart);
+    drawRadarChart();
+  }
+
+  function initRadar(slide) {
+    var radarScene = find(slide, '.radar-setup');
+    if (!radarScene) return;
+    radarScene.classList.add('radar-active');
+  }
+
+  function initRobot(slide) {
+    var scene = find(slide, '.robot-scene');
+    if (!scene) return;
+    var driving = scene.querySelector('.scene-driving');
+    var path = scene.querySelector('#robot-drive-path');
+    if (!driving || !path) return;
+    robot = {
+      scene: scene,
+      driving: driving,
+      rays: scene.querySelector('#robot-sensor-rays'),
+      origin: scene.querySelector('#robot-sensor-origin'),
+      path: path,
+      length: path.getTotalLength()
+    };
+  }
+
+  function initModelReveal(slide) {
+    var modelGroup = slide.querySelector('.model-group');
+    if (!modelGroup) return;
+    modelGroup.classList.remove('model-enter');
+    void modelGroup.getBoundingClientRect();
+    modelGroup.classList.add('model-enter');
+  }
+
+  function initCkfQuestion(slide) {
+    var question = find(slide, '.ckf-question');
+    if (!question) return;
+    question.classList.add('question-visible');
+  }
+
+  function initSlide(slide) {
+    initChart(slide);
+    initRadar(slide);
+    initRobot(slide);
+    initModelReveal(slide);
+    initCkfQuestion(slide);
+    var scene = find(slide, '.ukf-scene');
+    ukf = scene ? { scene: scene, fly: scene.querySelector('#ukf-fly') } : null;
+  }
+
+  /* ------------------------------------------------------------- animations */
+  function setSensorPosition(x, y) {
+    if (!robot || !robot.rays || !robot.origin) return;
+    robot.rays.setAttribute('d', 'M' + x + ' ' + y + ' L405 91 M' + x + ' ' + y + ' L800 80');
+    robot.origin.setAttribute('cx', x);
+    robot.origin.setAttribute('cy', y);
+  }
+
+  function updateRobotAnimation(slide) {
+    if (!robot) return;
+    if (robotFrame !== null) cancelAnimationFrame(robotFrame);
+    robotFrame = null;
+    robot.driving.setAttribute('transform', 'translate(0 0)');
+    var step = Number(slide.dataset.build);
+    setSensorPosition(step >= 3 ? 635.75 : 525, step >= 3 ? 186.65 : 214);
+    if (step !== 4 || reducedMotion()) return;
+    var start;
+    function frame(time) {
+      if (start === undefined) start = time;
+      var distance = ((time - start) % 8000) / 8000 * robot.length;
+      var position = robot.path.getPointAtLength(distance);
+      var dx = position.x - 630;
+      var dy = position.y - 220;
+      robot.driving.setAttribute('transform', 'translate(' + dx + ' ' + dy + ')');
+      setSensorPosition(635.75 + dx, 186.65 + dy);
+      robotFrame = requestAnimationFrame(frame);
+    }
+    robotFrame = requestAnimationFrame(frame);
+  }
+
+  function updateUkfAnimation(slide) {
+    if (!ukf || !ukf.fly) return;
+    var on = Number(slide.dataset.build) === 4 && !reducedMotion();
+    if (on && !ukfFlying) { ukf.fly.beginElement(); ukfFlying = true; }
+    else if (!on && ukfFlying) { ukf.fly.endElement(); ukfFlying = false; }
+  }
+
+  function updateSplitLists(slide) {
+    var list = slide.querySelector('.split-text');
+    if (!list) return;
+    var k = scaleFactor() || 1;
+    var items = Array.prototype.slice.call(list.querySelectorAll('.step'));
+    items.forEach(function (el) { el.classList.remove('on'); el.classList.remove('current'); });
+    var visible = items.filter(function (el) { return parseInt(el.dataset.n, 10) <= build; });
+    visible.forEach(function (el) { el.classList.add('on'); });
+    if (visible.length) visible[visible.length - 1].classList.add('current');
+    var rail = list.querySelector('.rail');
+    var railActive = list.querySelector('.rail-active');
+    if (!rail) return;
+    if (!visible.length) {
+      rail.style.height = '0px';
+      if (railActive) railActive.style.opacity = '0';
+      return;
+    }
+    var current = visible[visible.length - 1];
+    var textTop = list.getBoundingClientRect().top;
+    var box = current.getBoundingClientRect();
+    rail.style.height = Math.max(0, (box.bottom - textTop) / k - 14) + 'px';
+    if (railActive) {
+      railActive.style.opacity = '1';
+      railActive.style.top = (box.top - textTop) / k + 'px';
+      railActive.style.height = box.height / k + 'px';
+    }
+  }
+
+  /* --------------------------------------------------------------- painting */
+  function paint() {
+    section.dataset.build = String(build);
+    Array.prototype.forEach.call(section.querySelectorAll('[data-step]'), function (el) {
+      el.classList.toggle('on', parseInt(el.dataset.step, 10) <= build);
+    });
+    updateSplitLists(section);
+    updateRobotAnimation(section);
+    updateUkfAnimation(section);
+  }
+
+  function apply() {
+    if (!section) return;
+    paint();
+    autoFit();
+  }
+
+  /* ---------------------------------------------------------------- mathjax */
+  function typeset() {
+    if (!window.MathJax || !MathJax.typesetPromise) return;
+    MathJax.typesetPromise([section]).then(function () {
+      // let MathJax's own layout settle, then measure again: typesetting changes
+      // the height of every build, and the scale is reset from the tallest one.
+      requestAnimationFrame(measureBuilds);
+      setTimeout(measureBuilds, 200);
+    }).catch(function () {});
+  }
+
+  function loadMath() {
+    var html = document.body.innerHTML;
+    if (html.indexOf('\\(') < 0 && html.indexOf('\\[') < 0) return;
+    if (window.MathJax) { typeset(); return; }
+    if (mathLoading) return;
+    mathLoading = true;
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+      svg: { fontCache: 'local' },
+      startup: { typeset: false }
+    };
+    var script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js';
+    script.async = true;
+    script.onload = function () {
+      if (window.MathJax && MathJax.startup && MathJax.startup.promise) {
+        MathJax.startup.promise.then(typeset);
+      } else {
+        typeset();
+      }
+    };
+    document.head.appendChild(script);
+  }
+
+  /* ----------------------------------------------------------------- input */
+  function next() {
+    if (build < steps) { build++; apply(); }
+    else notify('next');
+  }
+
+  function prev() {
+    if (build > 1) { build--; apply(); }
+    else notify('prev');
+  }
+
+  function jumpTo(value) {
+    if (value >= 1 && value <= steps && value !== build) { build = value; apply(); }
+  }
+
+  function handleKey(key) {
+    if (key === 'f' || key === 'F') { toggleFullscreen(); return true; }
+    if (!section || opts.showAll) return false;
+    if (key === 'ArrowRight' || key === ' ' || key === 'PageDown' || key === 'Enter') { next(); return true; }
+    if (key === 'ArrowLeft' || key === 'PageUp') { prev(); return true; }
+    if (key === 'Home') { jumpTo(1); return true; }
+    if (key === 'End') { jumpTo(steps); return true; }
+    if (key === 'Escape') { notify('exit'); return true; }
+    return false;
+  }
+
+  document.addEventListener('keydown', function (event) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (handleKey(event.key)) event.preventDefault();
+  });
+
+  document.addEventListener('click', function (event) {
+    if (!section || opts.showAll) return;
+    if (event.target.closest('a, button, input, textarea, select, svg')) return;
+    next();
+  });
+
+  window.addEventListener('message', function (event) {
+    var data = event.data;
+    if (data && data.slideui === 'key') handleKey(data.key);
+  });
+
+  window.addEventListener('resize', function () { fitWindow(); });
+
+  /* ----------------------------------------------------------------- counter */
+  /* The player tells the runtime its global position, so the number lives inside
+     the scaled canvas (same proportions as deck-draft.html at any window size). */
+  function renderCounter() {
+    if (opts.index == null || !opts.total) return;
+    var host = layout || document.body;
+    var el = host.querySelector('.slideui-counter');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'slideui-counter';
+      el.setAttribute('aria-hidden', 'true');
+      el.innerHTML = '<span class="current-slide"></span><span class="total-slides"></span>';
+      host.appendChild(el);
+    }
+    el.querySelector('.current-slide').textContent = String(opts.index + 1);
+    el.querySelector('.total-slides').textContent = ' / ' + opts.total;
+  }
+
+  /* ------------------------------------------------------------------ start */
+  function start() {
+    layout = document.querySelector('.slide-layout');
+    section = layout && layout.querySelector('.slide');
+    if (!section) return;
+    renderCounter();
+    steps = Math.max(1, parseInt(section.dataset.steps || '1', 10));
+    build = startMatch ? Math.max(1, Math.min(steps, Number(startMatch[1])))
+      : (opts.showAll || opts.atEnd ? steps : 1);
+    fitWindow();
+    initSlide(section);
+    measureBuilds();
+    loadMath();
+    var release = function () {
+      document.documentElement.removeAttribute('data-slideui-init');
+    };
+    requestAnimationFrame(function () { requestAnimationFrame(release); });
+    setTimeout(release, 400);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+
+</script></head><body>
+<!-- SPEAKER NOTES (55s):
+The membrane state describes what the neuron is doing. Its sensitivity describes how that state would change if w had been slightly different throughout the sequence. In the two-input example, the first pre-reset sensitivity is q1=1. At the first potential the surrogate derivative is zero and there is no spike, so its post-reset sensitivity is also one. The second pre-reset sensitivity is 0.8 times one plus one, or 1.8. When the loss becomes available, multiply the local loss derivative -1, surrogate derivative one, and stored sensitivity 1.8. This matches BPTT under the same fixed weights, trajectory, surrogate and reset convention. General RTRL propagates the complete state-to-parameter sensitivity matrix, including reset and other dynamics. Dense exact RTRL can require cubic memory and quartic computation in the state dimension. Real-time means a causal forward calculation, not a promise of fast execution. Updating weights at each time step changes the trajectory and is a separate training schedule.
+Sources: https://doi.org/10.1162/neco.1989.1.2.270 ; https://jmlr.org/papers/v21/19-562.html
+-->
+<div class="slide-layout"><section class="slide build snn-slide detail-slide " data-steps="4">
+<p class="kicker">Training / Inference Procedures</p><h1>Real-time recurrent learning (RTRL)</h1><div class="body"><p class="lead">Maintain weight sensitivities alongside the evolving neuron state.</p><svg viewBox="0 0 1176 302" role="img" aria-label="RTRL carries a sensitivity of one at step one into a sensitivity of 1.8 at step two, then combines it with the arriving loss."><title>RTRL carries a sensitivity of one at step one into a sensitivity of 1.8 at step two, then combines it with the arriving loss.</title><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker></defs><g data-step="1"><text x="20" y="22" font-size="21" class="muted" text-anchor="start">q[t] = ∂v[t]/∂w: how a small weight change affects the current potential.</text><text x="205" y="69" font-size="19" class="muted" text-anchor="middle">t = 1</text><rect x="65" y="92" width="280" height="75" rx="14" class="node"/><text x="205.0" y="138.5" font-size="27" class="" text-anchor="middle" font-weight="600">v[1] = 0.5</text><rect x="65" y="205" width="280" height="78" rx="14" class="node"/><text x="205.0" y="242.0" font-size="27" class="" text-anchor="middle" font-weight="600">q[1] = 1</text><text x="205.0" y="273.0" font-size="20" class="muted" text-anchor="middle">Sensitivity to w</text><path d="M205 175V199" class="signal" marker-end="url(#arr)"/></g><g data-step="2"><text x="645" y="69" font-size="19" class="muted" text-anchor="middle">t = 2</text><rect x="505" y="92" width="280" height="75" rx="14" class="node"/><text x="645.0" y="138.5" font-size="27" class="" text-anchor="middle" font-weight="600">v[2] = 0.9</text><path d="M360 129H488" class="signal build-path" pathLength="1" marker-end="url(#arr)"/><text x="424" y="111" font-size="18" class="muted" text-anchor="middle">State update</text><rect x="505" y="205" width="280" height="78" rx="14" class="node"/><text x="645.0" y="242.0" font-size="27" class="" text-anchor="middle" font-weight="600">q[2] = 1.8</text><text x="645.0" y="273.0" font-size="20" class="muted" text-anchor="middle">0.8 × q[1] + 1</text><path d="M360 244H488" class="signal-red build-path" pathLength="1" marker-end="url(#arr)"/><text x="424" y="225" font-size="18" class="muted" text-anchor="middle">Carry influence</text></g><g data-step="3"><path d="M800 129H875" class="signal" marker-end="url(#arr)"/><text x="900" y="114" font-size="26" class="" text-anchor="start" font-weight="650">Loss arrives</text><text x="900" y="154" font-size="23" class="red" text-anchor="start">Error: −1</text><text x="900" y="192" font-size="23" class="" text-anchor="start">Surrogate: 1</text><text x="900" y="230" font-size="23" class="" text-anchor="start">Sensitivity: 1.8</text><text x="900" y="281" font-size="26" class="red" text-anchor="start" font-weight="650">Gradient: −1.8</text></g></svg><div class="formula-strip" data-step="4"><div><p class="eyebrow">The temporal influence is already available</p><div class="math">∂L/∂w ≈ (−1) × 1 × q[2] = −1.8</div></div></div>
+<p class="detail-line" data-step="4">No backward replay of past states. Exact RTRL needs many state-to-weight sensitivities.</p></div><p class="source">Williams &amp; Zipser (1989) · Marschall, Cho &amp; Savin (2020) · Illustrative scalar example</p>
+</section></div></body></html>
