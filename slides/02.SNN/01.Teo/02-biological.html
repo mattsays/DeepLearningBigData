@@ -1,135 +1,184 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Biological Neurons</title>
+  <title>The Biological Neuron</title>
   <link rel="stylesheet" href="slideui.css">
   <script src="slideui.js" defer></script>
-  <style>
-    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
-    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
-    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
-    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
-    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
-  </style>
 </head>
 <body>
+<!-- BUDGET: tier S, B = 528px = row1 240 + gap 16 + row2 240 = 496px (94%) -->
 
-<div class="slide-layout" style="padding: 36px 48px; justify-content: flex-start;">
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
 
   <!-- Header -->
-  <div class="title" style="font-size: 2.75rem; margin-bottom: 0.25rem;">Biological Neurons: How They Compute</div>
-  <div class="subtitle" style="font-size: 1.5rem; margin-bottom: 0;">From cell structure to the action potential</div>
+  <div style="margin-bottom: 20px;">
+    <div class="title" style="font-size: 2.75rem; margin: 0 0 4px 0;">The Biological Neuron</div>
+    <div class="subtitle" style="font-size: 1.5rem; margin: 0;">From membrane structure to the potential equation and spikes</div>
+  </div>
 
-  <!-- Row 1: anatomy → membrane → action potential -->
-  <div style="display: flex; align-items: center; gap: 12px; margin-top: 14px;">
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
 
-    <!-- Panel 1: neuron anatomy -->
-    <div class="panel panel-primary" data-step="1" style="flex: 1; min-width: 0; padding: 20px; margin: 0;">
-      <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">1. Neuron anatomy</div>
-      <svg viewBox="0 0 320 150" style="display: block; width: 100%; height: 140px; margin-bottom: 8px;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" font-family="sans-serif" font-size="13">
-        <!-- dendrites -->
-        <path d="M92 68 L60 50 L35 45 M60 50 L45 30 M92 75 L40 75 L18 85 M40 75 L25 65 M92 82 L60 102 L35 112 M60 102 L50 125" stroke="#3b82f6"/>
-        <!-- soma and nucleus -->
-        <circle cx="110" cy="75" r="20" fill="#3b82f6" fill-opacity="0.35" stroke="#3b82f6"/>
-        <circle cx="110" cy="75" r="7" fill="#3b82f6" stroke="none"/>
-        <!-- axon with myelin sheath -->
-        <path d="M130 75 H262" stroke="#94a3b8" stroke-width="3"/>
-        <rect x="148" y="68" width="30" height="14" rx="7" fill="#f59e0b" fill-opacity="0.6" stroke="#f59e0b"/>
-        <rect x="188" y="68" width="30" height="14" rx="7" fill="#f59e0b" fill-opacity="0.6" stroke="#f59e0b"/>
-        <rect x="228" y="68" width="30" height="14" rx="7" fill="#f59e0b" fill-opacity="0.6" stroke="#f59e0b"/>
-        <!-- axon terminals / synapses -->
-        <path d="M262 75 L290 55 M262 75 L294 75 M262 75 L290 95" stroke="#94a3b8"/>
-        <circle cx="292" cy="53" r="4" fill="#ef4444" stroke="none"/>
-        <circle cx="296" cy="75" r="4" fill="#ef4444" stroke="none"/>
-        <circle cx="292" cy="97" r="4" fill="#ef4444" stroke="none"/>
-        <!-- labels -->
-        <text x="4" y="14" fill="currentColor" stroke="none">Dendrites</text>
-        <text x="110" y="118" fill="currentColor" stroke="none" text-anchor="middle">Soma</text>
-        <text x="200" y="55" fill="currentColor" stroke="none" text-anchor="middle">Axon + myelin</text>
-        <text x="316" y="125" fill="currentColor" stroke="none" text-anchor="end">Synapses</text>
-      </svg>
-      <div style="font-size: 1.05rem; margin-bottom: 0;">Dendrites collect input spikes, the soma sums them, the myelinated axon carries the output.</div>
+    <!-- Row 1: structure and membrane diagrams -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
+
+      <!-- Neuron structure -->
+      <div class="panel panel-primary" data-step="1" style="flex: 1; min-width: 0; padding: 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">Neuron structure</div>
+        <svg viewBox="0 0 544 160" style="width: 100%; height: 160px; display: block;" xmlns="http://www.w3.org/2000/svg">
+          <!-- Dendrites -->
+          <g stroke="#3b82f6" stroke-width="3" fill="none" stroke-linecap="round">
+            <path d="M178,68 L135,44 L100,34 M135,44 L108,52"/>
+            <path d="M174,80 L125,80 L85,76 M125,80 L96,94"/>
+            <path d="M178,92 L135,116 L100,126 M135,116 L108,108"/>
+          </g>
+          <!-- Incoming synapses -->
+          <g fill="#f59e0b">
+            <circle cx="100" cy="34" r="5"/>
+            <circle cx="108" cy="52" r="5"/>
+            <circle cx="85" cy="76" r="5"/>
+            <circle cx="96" cy="94" r="5"/>
+            <circle cx="100" cy="126" r="5"/>
+            <circle cx="108" cy="108" r="5"/>
+          </g>
+          <!-- Soma and nucleus -->
+          <circle cx="200" cy="80" r="26" fill="#3b82f6" fill-opacity="0.25" stroke="#3b82f6" stroke-width="3"/>
+          <circle cx="200" cy="80" r="9" fill="#3b82f6" fill-opacity="0.6"/>
+          <!-- Axon hillock -->
+          <path d="M224,66 L252,78 L252,82 L224,94 Z" fill="#f59e0b" fill-opacity="0.5" stroke="#f59e0b" stroke-width="2"/>
+          <!-- Axon with myelin -->
+          <line x1="252" y1="80" x2="440" y2="80" stroke="#3b82f6" stroke-width="4"/>
+          <g fill="#3b82f6" fill-opacity="0.35" stroke="#3b82f6" stroke-width="2">
+            <rect x="268" y="70" width="36" height="20" rx="8"/>
+            <rect x="318" y="70" width="36" height="20" rx="8"/>
+            <rect x="368" y="70" width="36" height="20" rx="8"/>
+          </g>
+          <!-- Axon terminals -->
+          <g stroke="#3b82f6" stroke-width="3" fill="none" stroke-linecap="round">
+            <path d="M440,80 L472,54"/>
+            <path d="M440,80 L480,80"/>
+            <path d="M440,80 L472,106"/>
+          </g>
+          <g fill="#f59e0b">
+            <circle cx="476" cy="51" r="6"/>
+            <circle cx="486" cy="80" r="6"/>
+            <circle cx="476" cy="109" r="6"/>
+          </g>
+          <!-- Labels -->
+          <g fill="currentColor" font-size="16" text-anchor="middle">
+            <text x="48" y="152">Dendrites</text>
+            <text x="200" y="130">Soma</text>
+            <text x="238" y="56" fill="#f59e0b">Hillock</text>
+            <text x="346" y="58">Axon</text>
+            <text x="346" y="116">myelin</text>
+            <text x="492" y="148">Synapses</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Membrane as RC circuit -->
+      <div class="panel panel-accent" data-step="2" style="flex: 1; min-width: 0; padding: 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">Membrane = RC circuit</div>
+        <svg viewBox="0 0 544 160" style="width: 100%; height: 160px; display: block;" xmlns="http://www.w3.org/2000/svg">
+          <!-- Lipid bilayer: heads (dots) and tails (bars) -->
+          <g stroke="#3b82f6" stroke-linecap="round">
+            <line x1="8" y1="56" x2="98" y2="56" stroke-width="10" stroke-dasharray="0 18"/>
+            <line x1="170" y1="56" x2="242" y2="56" stroke-width="10" stroke-dasharray="0 18"/>
+            <line x1="8" y1="104" x2="98" y2="104" stroke-width="10" stroke-dasharray="0 18"/>
+            <line x1="170" y1="104" x2="242" y2="104" stroke-width="10" stroke-dasharray="0 18"/>
+          </g>
+          <g stroke="#3b82f6" stroke-opacity="0.6" stroke-width="24" stroke-dasharray="2 16">
+            <line x1="7" y1="68" x2="101" y2="68"/>
+            <line x1="169" y1="68" x2="247" y2="68"/>
+            <line x1="7" y1="92" x2="101" y2="92"/>
+            <line x1="169" y1="92" x2="247" y2="92"/>
+          </g>
+          <!-- Gated ion channel -->
+          <rect x="112" y="48" width="14" height="64" rx="5" fill="#f59e0b"/>
+          <rect x="144" y="48" width="14" height="64" rx="5" fill="#f59e0b"/>
+          <line x1="135" y1="38" x2="135" y2="116" stroke="#f59e0b" stroke-width="3" stroke-dasharray="6 5"/>
+          <polygon points="128,114 142,114 135,128" fill="#f59e0b"/>
+          <!-- RC circuit: wires -->
+          <g stroke="currentColor" stroke-width="2.5" fill="none">
+            <path d="M312,40 H505"/>
+            <path d="M312,130 H505"/>
+            <path d="M360,40 V75 M360,87 V130"/>
+            <path d="M342,75 H378 M342,87 H378" stroke="#3b82f6" stroke-width="4"/>
+            <path d="M470,40 V52 L482,58 L458,70 L482,82 L458,94 L470,100 V130" stroke="#f59e0b" stroke-width="3"/>
+            <path d="M505,40 V130" stroke-dasharray="5 4"/>
+          </g>
+          <!-- Input current arrow -->
+          <line x1="284" y1="40" x2="312" y2="40" stroke="currentColor" stroke-width="2.5"/>
+          <polygon points="310,34 322,40 310,46" fill="currentColor"/>
+          <!-- Nodes -->
+          <g fill="currentColor">
+            <circle cx="360" cy="40" r="4"/>
+            <circle cx="360" cy="130" r="4"/>
+            <circle cx="470" cy="40" r="4"/>
+            <circle cx="470" cy="130" r="4"/>
+            <circle cx="505" cy="40" r="5"/>
+            <circle cx="505" cy="130" r="5"/>
+          </g>
+          <!-- Labels -->
+          <g fill="currentColor" font-size="16">
+            <text x="8" y="24">outside</text>
+            <text x="8" y="150">inside</text>
+            <text x="135" y="30" text-anchor="middle" fill="#f59e0b">Na⁺</text>
+            <text x="135" y="152" text-anchor="middle" fill="#f59e0b">gated channel</text>
+            <text x="214" y="36" text-anchor="middle" fill="#3b82f6">lipid bilayer</text>
+            <text x="290" y="28">I</text>
+            <text x="298" y="32" font-size="12"></text>
+            <text x="518" y="90">U</text>
+            <text x="360" y="152" text-anchor="middle" fill="#3b82f6">C</text>
+            <text x="470" y="152" text-anchor="middle" fill="#f59e0b">R</text>
+          </g>
+        </svg>
+      </div>
     </div>
 
-    <!-- Arrow 1 -->
-    <div data-step="2" style="display: flex; justify-content: center;"><span class="arrow arrow-right">→</span></div>
+    <!-- Row 2: equation and spike plot -->
+    <div style="flex: 1; display: flex; align-items: stretch; gap: 16px;">
 
-    <!-- Panel 2: membrane and ion channels -->
-    <div class="panel panel-primary" data-step="2" style="flex: 1; min-width: 0; padding: 20px; margin: 0;">
-      <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">2. Membrane &amp; ion channels</div>
-      <svg viewBox="0 0 320 150" style="display: block; width: 100%; height: 140px; margin-bottom: 8px;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" font-family="sans-serif" font-size="13">
-        <!-- lipid bilayer pattern -->
-        <defs>
-          <pattern id="lip" x="0" y="49" width="20" height="54" patternUnits="userSpaceOnUse">
-            <circle cx="10" cy="6" r="5" fill="#3b82f6" stroke="none"/>
-            <circle cx="10" cy="48" r="5" fill="#3b82f6" stroke="none"/>
-            <path d="M8 11 V22 M12 11 V22 M8 32 V43 M12 32 V43" stroke="#94a3b8" stroke-width="1.5"/>
-          </pattern>
-        </defs>
-        <rect x="0" y="49" width="96" height="54" fill="url(#lip)" stroke="none"/>
-        <rect x="130" y="49" width="70" height="54" fill="url(#lip)" stroke="none"/>
-        <rect x="234" y="49" width="86" height="54" fill="url(#lip)" stroke="none"/>
-        <!-- open channel protein with Na+ flowing in -->
-        <rect x="96" y="47" width="34" height="58" rx="8" fill="#f59e0b" fill-opacity="0.55" stroke="#f59e0b"/>
-        <circle cx="113" cy="22" r="9" fill="#ef4444" stroke="none"/>
-        <text x="113" y="27" fill="#ffffff" stroke="none" text-anchor="middle" font-size="14">+</text>
-        <path d="M113 34 V72 M107 64 L113 72 L119 64" stroke="#ef4444"/>
-        <!-- closed channel protein, Na+ blocked -->
-        <rect x="200" y="47" width="34" height="58" rx="8" fill="#f59e0b" fill-opacity="0.55" stroke="#f59e0b"/>
-        <path d="M204 76 H230" stroke="#ef4444" stroke-width="3"/>
-        <circle cx="217" cy="22" r="9" fill="#ef4444" stroke="none"/>
-        <text x="217" y="27" fill="#ffffff" stroke="none" text-anchor="middle" font-size="14">+</text>
-        <!-- labels -->
-        <text x="4" y="14" fill="currentColor" stroke="none">outside</text>
-        <text x="4" y="144" fill="currentColor" stroke="none">inside</text>
-        <text x="128" y="26" fill="currentColor" stroke="none">Na⁺</text>
-        <text x="113" y="126" fill="currentColor" stroke="none" text-anchor="middle">open</text>
-        <text x="217" y="126" fill="currentColor" stroke="none" text-anchor="middle">closed</text>
-        <text x="316" y="144" fill="currentColor" stroke="none" text-anchor="end">C = bilayer, R = channel</text>
-      </svg>
-      <div style="font-size: 1.05rem; margin-bottom: 0;">The bilayer acts as a capacitor C, gated ion channels as a resistor R that lets Na⁺ leak in.</div>
-    </div>
+      <!-- Potential dynamics -->
+      <div class="panel panel-accent" data-step="3" style="flex: 1; min-width: 0; padding: 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-accent" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">Potential dynamics</div>
+        <div class="math-block" style="padding: 12px; margin: 0 0 10px 0; font-size: 1.4rem;">\(\displaystyle \tau\frac{dU}{dt}=-U(t)+I_{in}(t)R,\quad \tau=RC \)</div>
+        <div class="math-block" style="padding: 12px; margin: 0; font-size: 1.4rem;">\(\displaystyle U\ge\theta \;\Rightarrow\; \text{spike},\; U\to 0 \)</div>
+      </div>
 
-    <!-- Arrow 2 -->
-    <div data-step="3" style="display: flex; justify-content: center;"><span class="arrow arrow-right">→</span></div>
-
-    <!-- Panel 3: action potential -->
-    <div class="panel panel-primary" data-step="3" style="flex: 1; min-width: 0; padding: 20px; margin: 0;">
-      <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">3. Action potential</div>
-      <svg viewBox="0 0 320 150" style="display: block; width: 100%; height: 140px; margin-bottom: 8px;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" font-family="sans-serif" font-size="13">
-        <!-- axes -->
-        <path d="M12 8 V132 H312" stroke="#94a3b8" stroke-width="1.5"/>
-        <!-- threshold -->
-        <path d="M12 80 H312" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 4"/>
-        <!-- membrane potential: sub-threshold bump, then a spike -->
-        <path d="M15 110 H40 Q50 98 60 110 H90 Q108 98 122 80 L136 20 Q146 12 154 40 L166 124 Q174 130 184 118 L200 110 H305" stroke="#3b82f6" stroke-width="2.5"/>
-        <!-- labels -->
-        <text x="18" y="20" fill="currentColor" stroke="none">mV</text>
-        <text x="50" y="94" fill="currentColor" stroke="none" text-anchor="middle">no spike</text>
-        <text x="166" y="30" fill="currentColor" stroke="none">spike!</text>
-        <text x="312" y="72" fill="#ef4444" stroke="none" text-anchor="end">threshold θ</text>
-        <text x="250" y="126" fill="currentColor" stroke="none" text-anchor="middle">rest</text>
-        <text x="312" y="146" fill="currentColor" stroke="none" text-anchor="end">time →</text>
-      </svg>
-      <div style="font-size: 1.05rem; margin-bottom: 0;">Input charges U(t) while it leaks away; crossing θ fires an all-or-nothing ~100 mV spike.</div>
+      <!-- Spike plot -->
+      <div class="panel panel-primary" data-step="4" style="flex: 1; min-width: 0; padding: 20px; margin: 0; display: flex; flex-direction: column; justify-content: center;">
+        <div class="text-primary" style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px;">Membrane potential and spikes</div>
+        <svg viewBox="0 0 544 160" style="width: 100%; height: 160px; display: block;" xmlns="http://www.w3.org/2000/svg">
+          <!-- Axes -->
+          <g stroke="currentColor" stroke-opacity="0.6" stroke-width="2" fill="none">
+            <path d="M40,8 V140 H538"/>
+          </g>
+          <!-- Threshold -->
+          <line x1="40" y1="40" x2="538" y2="40" stroke="currentColor" stroke-opacity="0.7" stroke-width="2" stroke-dasharray="6 5"/>
+          <!-- Membrane potential U(t) -->
+          <path d="M40,130 C70,100 110,62 195,40 L199,6 L203,130 C233,100 273,62 358,40 L362,6 L366,130 C396,100 436,70 470,57"
+                stroke="#3b82f6" stroke-width="3" fill="none" stroke-linejoin="round"/>
+          <!-- Spikes -->
+          <g stroke="#f59e0b" stroke-width="4" stroke-linecap="round">
+            <line x1="199" y1="6" x2="199" y2="26"/>
+            <line x1="362" y1="6" x2="362" y2="26"/>
+          </g>
+          <!-- Labels -->
+          <g fill="currentColor" font-size="16">
+            <text x="14" y="20">U</text>
+            <text x="16" y="46" fill="#f59e0b">θ</text>
+            <text x="528" y="132" text-anchor="end">t</text>
+            <text x="48" y="28">leaky integration</text>
+            <text x="212" y="20" fill="#f59e0b">spike</text>
+            <text x="196" y="128" text-anchor="end">reset</text>
+          </g>
+        </svg>
+      </div>
     </div>
 
   </div>
-
-  <!-- Row 2: membrane equation and key idea -->
-  <div style="display: flex; align-items: center; gap: 16px; margin-top: 14px;">
-
-    <!-- Biological membrane equation (continuous time) -->
-    <div class="math-block" data-step="4" style="flex: 1; padding: 12px; margin: 0; font-size: 1.2rem;">\(\displaystyle \tau\,\frac{dU}{dt} = -U(t) + I_{in}(t)\,R\)</div>
-
-    <!-- Key idea -->
-    <div class="panel panel-accent" data-step="4" style="flex: 1.2; min-width: 0; padding: 12px 20px; margin: 0;">
-      <div style="font-size: 1.05rem; margin-bottom: 0;"><b>Key idea:</b> information lies in whether and when a neuron spikes, not in the spike's shape.</div>
-    </div>
-
-  </div>
-
 </div>
 
 </body>
