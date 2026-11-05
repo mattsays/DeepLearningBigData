@@ -15,6 +15,11 @@
   .ace_scrollbar-h { display: none !important; }
   #preview-frame, #presentation-frame { border: 0; width: 100%; height: 100%; display: block; background: #f1f5f9; }
   #export-dialog::backdrop { background: rgb(0 0 0 / .5); }
+  #export-progress-bar { appearance:none; display:block; width:100%; height:10px; border:0; border-radius:999px; overflow:hidden; background:#e2e8f0; }
+  #export-progress-bar::-webkit-progress-bar { background:#e2e8f0; border-radius:999px; }
+  #export-progress-bar::-webkit-progress-value { background:#2563eb; border-radius:999px; transition:width .2s ease; }
+  #export-progress-bar::-moz-progress-bar { background:#2563eb; border-radius:999px; }
+  @media (prefers-reduced-motion:reduce) { #export-progress-bar::-webkit-progress-value { transition:none; } }
 </style>
 </head>
 <body class="flex h-screen">
@@ -78,13 +83,21 @@
     <label class="flex items-start gap-2 text-sm text-slate-700">
       <input id="export-steps" type="checkbox" checked disabled class="mt-1">
       <span>Includi tutti i data-step nel PDF
-        <span class="block text-xs text-slate-500 mt-1">Una pagina per lo stato iniziale e per ogni passaggio, in ordine. Se disattivato: una pagina per slide, con tutti i contenuti visibili.</span>
+        <span class="block text-xs text-slate-500 mt-1">Una pagina per ogni stato della presentazione, in ordine. Se disattivato: una pagina per slide, nello stato finale.</span>
       </span>
     </label>
     <p id="export-help" class="text-sm text-slate-500" aria-live="polite"></p>
+    <div id="export-meter" hidden>
+      <div class="flex justify-between text-sm text-slate-700 mb-2">
+        <span>Generazione PDF</span>
+        <span id="export-percent" class="font-semibold tabular-nums" aria-hidden="true">0%</span>
+      </div>
+      <progress id="export-progress-bar" value="0" max="100" aria-label="Generazione PDF"></progress>
+    </div>
+    <p id="export-progress" class="text-sm text-slate-700" role="status" hidden></p>
     <div class="flex justify-end gap-2 mt-2">
-      <button type="button" onclick="document.getElementById('export-dialog').close()" class="px-4 py-2 rounded bg-slate-100 hover:bg-slate-200 text-slate-700">Annulla</button>
-      <button type="submit" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold">Esporta</button>
+      <button type="button" onclick="cancelPresentationExport()" class="px-4 py-2 rounded bg-slate-100 hover:bg-slate-200 text-slate-700">Annulla</button>
+      <button id="export-submit" type="submit" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50">Esporta</button>
     </div>
   </form>
 </dialog>
@@ -820,164 +833,303 @@ document.addEventListener('keydown', e => {
   }
 });
 
+let exportController = null;
+const exportLibraryLoads = new Map();
+const PDF_EXPORT_SETTINGS = { pixelRatio:1, jpegQuality:.72 };
+// Solo le proprietà che influiscono sulla resa SVG: evita di serializzare
+// centinaia di proprietà HTML inutili per ogni nodo di ogni diagramma.
+const EXPORT_SVG_PROPERTIES = (`color display visibility opacity overflow
+  fill fill-opacity fill-rule clip-rule stroke stroke-width stroke-opacity
+  stroke-linecap stroke-linejoin stroke-miterlimit stroke-dasharray stroke-dashoffset
+  paint-order vector-effect filter clip-path mask marker-start marker-mid marker-end
+  transform transform-origin transform-box x y cx cy r rx ry width height d
+  font-family font-size font-style font-weight font-stretch font-variant
+  font-feature-settings font-variation-settings font-kerning font-variant-numeric
+  text-anchor text-rendering text-transform text-decoration dominant-baseline
+  alignment-baseline baseline-shift letter-spacing word-spacing white-space
+  writing-mode direction unicode-bidi stop-color stop-opacity flood-color flood-opacity
+  lighting-color color-interpolation color-interpolation-filters shape-rendering
+  image-rendering mix-blend-mode isolation`).split(/\s+/);
+
 function openExportDialog() {
-  if (!slides.length) return;
+  if (!slides.length || exportController) return;
+  $('export-progress').hidden = true;
+  $('export-meter').hidden = true;
+  setExportPDFProgress(0);
   updateExportOptions();
   $('export-dialog').showModal();
 }
 
+function setExportPDFProgress(value) {
+  const percent = Math.max(0, Math.min(100, Math.floor(value)));
+  $('export-progress-bar').value = percent;
+  $('export-percent').textContent = percent + '%';
+}
+
 function updateExportOptions() {
   const pdf = $('export-format').value !== 'html';
-  $('export-steps').disabled = !pdf;
+  $('export-steps').disabled = !pdf || !!exportController;
   $('export-help').textContent = pdf
-    ? 'Il PDF si salva dalla finestra di stampa: scegli “Salva come PDF”, senza margini né intestazioni o piè di pagina. L’HTML mantiene la navigazione interattiva.'
+    ? 'Il PDF viene scaricato direttamente in formato orizzontale 16:9. L’HTML mantiene la navigazione interattiva.'
     : 'L’HTML mantiene la navigazione interattiva tra slide e data-step.';
 }
 
-function downloadPresentationHTML(docs) {
-  const html = buildPlayerHTML(docs, 0);
+function downloadExport(blob, name) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-  a.download = 'presentation.html';
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = name;
   a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-// Un iframe per pagina mantiene separati gli stili dei diversi capitoli.
-// Le formule vengono elaborate una sola volta per slide, prima di congelare gli step.
-function loadExportFrame(win, html, parent) {
+function downloadPresentationHTML(docs) {
+  downloadExport(new Blob([buildPlayerHTML(docs, 0)], { type:'text/html' }), 'presentation.html');
+}
+
+function loadExportLibrary(path, globalName) {
+  if (window[globalName]) return Promise.resolve();
+  if (exportLibraryLoads.has(path)) return exportLibraryLoads.get(path);
+  const promise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const fail = () => {
+      clearTimeout(timer);
+      script.remove();
+      exportLibraryLoads.delete(path);
+      reject(new Error('Impossibile caricare ' + path + '. Mantieni la cartella vendor accanto a pmaker.html.'));
+    };
+    const timer = setTimeout(fail, 30000);
+    script.onload = () => { if (!window[globalName]) return fail(); clearTimeout(timer); resolve(); };
+    script.onerror = fail;
+    script.src = path;
+    document.head.appendChild(script);
+  });
+  exportLibraryLoads.set(path, promise);
+  return promise;
+}
+
+function loadExportFrame(html, parent, signal) {
   return new Promise((resolve, reject) => {
-    const frame = win.document.createElement('iframe');
+    signal.throwIfAborted();
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'display:block;width:1280px;height:720px;border:0';
+    const cleanup = () => { clearTimeout(timer); signal.removeEventListener('abort', onAbort); };
+    const onAbort = () => { cleanup(); frame.remove(); reject(signal.reason); };
     const timer = setTimeout(() => {
+      cleanup();
       frame.remove();
-      reject(new Error('Tempo scaduto durante il caricamento di una slide. Controlla la connessione e riprova.'));
+      reject(new Error('Tempo scaduto durante il caricamento della slide. Controlla la connessione e riprova.'));
     }, 30000);
-    frame.onload = () => { clearTimeout(timer); resolve(frame); };
+    signal.addEventListener('abort', onAbort, {once:true});
+    frame.onload = () => { cleanup(); resolve(frame); };
     frame.srcdoc = html;
     parent.appendChild(frame);
   });
 }
 
-async function waitForExportAssets(frame) {
+async function waitForExportAssets(frame, signal) {
+  signal.throwIfAborted();
   const win = frame.contentWindow, doc = frame.contentDocument;
-  let timer;
+  let timer, onAbort;
   try {
     await Promise.race([
       (async () => {
         if (win.MathJax) {
-          if (!win.MathJax.startup) throw new Error('MathJax non è stato caricato. Controlla la connessione e riprova.');
+          if (!win.MathJax.startup?.promise) throw new Error('MathJax non è stato caricato. Controlla la connessione e riprova.');
           await win.MathJax.startup.promise;
+          // Alcuni runtime lanciano il typesetting dopo startup, altri durante startup.
+          if (win.MathJax.typesetPromise) await win.MathJax.typesetPromise();
         }
         await Promise.all(Array.from(doc.images, image => image.decode()));
         await doc.fonts.ready;
       })(),
       new Promise((_, reject) => {
         timer = setTimeout(() => reject(new Error('Tempo scaduto durante il caricamento di formule, immagini o font.')), 30000);
+      }),
+      new Promise((_, reject) => {
+        onAbort = () => reject(signal.reason);
+        signal.addEventListener('abort', onAbort, {once:true});
       })
     ]);
-  } finally { clearTimeout(timer); }
+  } finally { clearTimeout(timer); signal.removeEventListener('abort', onAbort); }
 }
 
-function freezeExportPage(doc, limit) {
-  const copy = doc.documentElement.cloneNode(true);
-  copy.querySelectorAll('script').forEach(el => el.remove());
-  copy.querySelectorAll('[data-step]').forEach(el => {
-    const show = (parseFloat(el.getAttribute('data-step')) || 0) <= limit;
-    el.classList.toggle('step-visible', show);
-    el.classList.toggle('step-hidden', !show);
-  });
-  const style = doc.createElement('style');
-  style.textContent = `
-    html, body { width:1280px !important; height:720px !important; margin:0 !important; overflow:hidden !important; --slide-scale:1 !important; }
-    *, *::before, *::after { animation:none !important; transition:none !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-    .slide-layout { box-shadow:none !important; }
-    [data-step].step-hidden { opacity:0 !important; visibility:hidden !important; }
-    [data-step].step-visible { opacity:1 !important; visibility:visible !important; }
-  `;
-  copy.querySelector('head').appendChild(style);
-  return '<!DOCTYPE html>' + copy.outerHTML;
+async function settleExportState(frame, initial = false) {
+  // Microtask, MutationObserver e ricalcolo del layout devono precedere la cattura.
+  await new Promise(resolve => setTimeout(resolve, initial ? 250 : 0));
+  frame.contentDocument.body.getBoundingClientRect();
+  await new Promise(resolve => setTimeout(resolve, initial ? 50 : 0));
 }
 
-async function preparePresentationPDF(win, docs, allSteps) {
-  win.document.open();
-  win.document.write(`<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>presentation</title>
-    <style>
-      @page { size:1280px 720px; margin:0; }
-      html,body { margin:0; padding:0; background:#e2e8f0; font-family:system-ui,sans-serif; }
-      #toolbar { position:sticky; top:0; padding:16px; background:white; z-index:1; }
-      #toolbar p { margin:0 0 10px; }
-      button { padding:8px 16px; cursor:pointer; }
-      section { width:1280px; height:720px; margin:16px auto; }
-      iframe { display:block; width:1280px; height:720px; border:0; }
-      #staging { position:fixed; left:-10000px; top:0; width:1280px; height:720px; }
-      @media print {
-        html,body { width:1280px; background:white; }
-        #toolbar,#staging { display:none !important; }
-        section { margin:0; break-inside:avoid; break-after:page; }
-        section:last-child { break-after:auto; }
-      }
-    </style></head><body>
-    <div id="toolbar"><p id="progress" role="status">Preparazione PDF…</p>
-      <p>Scegli “Salva come PDF”, senza margini né intestazioni o piè di pagina.</p>
-      <button id="print" disabled>Salva come PDF / Stampa</button></div>
-    <main id="pages"></main><div id="staging"></div></body></html>`);
-  win.document.close();
-  const progress = win.document.getElementById('progress');
-  const pages = win.document.getElementById('pages');
-  const staging = win.document.getElementById('staging');
-  const print = win.document.getElementById('print');
-  print.onclick = () => win.print();
-  try {
-    for (let index = 0; index < docs.length; index++) {
-      if (win.closed) return;
-      progress.textContent = `Preparazione slide ${index + 1} di ${docs.length}…`;
-      const flag = '<scr' + 'ipt>window.__SLIDEUI=' + JSON.stringify({ showAll:true, index, total:docs.length }) + '</scr' + 'ipt>';
-      const html = /<head[^>]*>/i.test(docs[index])
-        ? docs[index].replace(/<head[^>]*>/i, m => m + flag) : flag + docs[index];
-      const source = await loadExportFrame(win, html, staging);
-      await waitForExportAssets(source);
-      const values = [...new Set(Array.from(source.contentDocument.querySelectorAll('[data-step]'),
-        el => parseFloat(el.getAttribute('data-step')) || 0))].sort((a, b) => a - b);
-      const limits = allSteps && values.length ? [-Infinity, ...values] : [Infinity];
-      await Promise.all(limits.map(async limit => {
-        const section = win.document.createElement('section');
-        pages.appendChild(section);
-        const frame = await loadExportFrame(win, freezeExportPage(source.contentDocument, limit), section);
-        await waitForExportAssets(frame);
-      }));
-      source.remove();
+async function captureExportState(frame, fontEmbedCSS) {
+  const doc = frame.contentDocument;
+  // html-to-image clona gli SVG interi: rendi espliciti anche gli stili dei figli,
+  // inclusi i marker e i filtri locali, prima della serializzazione.
+  // Prima tutte le letture, poi tutte le scritture: modificare uno stile tra
+  // due getComputedStyle costringeva il browser a ricalcolare gli stili di continuo.
+  const saved = Array.from(doc.querySelectorAll('svg, svg *'), el => {
+    const computed = frame.contentWindow.getComputedStyle(el);
+    let css = '';
+    // I contenuti HTML dentro foreignObject conservano invece tutti gli stili.
+    const properties = el.namespaceURI === 'http://www.w3.org/2000/svg' ? EXPORT_SVG_PROPERTIES : computed;
+    for (const name of properties) {
+      const value = computed.getPropertyValue(name).replace(/url\(["']?[^)"']*#([^\s)"']+)["']?\)/g, 'url(#$1)');
+      if (value) css += name + ':' + value + ';';
     }
-    if (win.closed) return;
-    staging.remove();
-    progress.textContent = `PDF pronto: ${pages.children.length} pagine da ${docs.length} slide.`;
-    print.disabled = false;
-    win.focus();
-    // Lascia al browser un ciclo di rendering prima di aprire la stampa.
-    win.requestAnimationFrame(() => win.requestAnimationFrame(() => win.print()));
-  } catch (error) {
-    if (win.closed) return;
-    staging.remove();
-    progress.textContent = 'Esportazione interrotta: ' + error.message;
-    progress.style.color = '#b91c1c';
-    setStatus('Esportazione PDF interrotta. Vedi la finestra PDF.', true);
+    return [el, el.getAttribute('style'), css];
+  });
+  saved.forEach(([el, , css]) => { el.style.cssText = css; });
+  try {
+    const canvas = await htmlToImage.toCanvas(doc.body, {
+      width:1280, height:720, pixelRatio:PDF_EXPORT_SETTINGS.pixelRatio, backgroundColor:'#ffffff', fontEmbedCSS,
+      style:{ margin:'0', width:'1280px', height:'720px', overflow:'hidden' },
+      filter:node => !['SCRIPT', 'LINK'].includes(node.tagName)
+    });
+    try {
+      return await new Promise((resolve, reject) => canvas.toBlob(blob => {
+        if (!blob) return reject(new Error('Impossibile acquisire la slide.'));
+        blob.arrayBuffer().then(buffer => resolve(new Uint8Array(buffer)), reject);
+      }, 'image/jpeg', PDF_EXPORT_SETTINGS.jpegQuality));
+    } finally { canvas.width = canvas.height = 0; }
+  } finally {
+    saved.forEach(([el, style]) => style === null ? el.removeAttribute('style') : el.setAttribute('style', style));
   }
 }
 
-function exportPresentation() {
-  if (!slides.length) return;
+async function preparePresentationPDF(docs, allSteps, signal) {
+  await Promise.all([
+    loadExportLibrary('vendor/pdf-lib-1.17.1.min.js', 'PDFLib'),
+    loadExportLibrary('vendor/html-to-image-1.11.13.js', 'htmlToImage')
+  ]);
+  signal.throwIfAborted();
+  setExportPDFProgress(5);
+  const pdf = await PDFLib.PDFDocument.create();
+  pdf.setTitle('Presentation');
+  const staging = document.createElement('div');
+  // Rimane fuori schermo: nessuna anteprima, finestra o dialogo di stampa.
+  staging.style.cssText = 'position:fixed;left:-10000px;top:0;width:1280px;height:720px;pointer-events:none';
+  staging.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(staging);
+  const preparation = new AbortController();
+  const abortPreparation = () => preparation.abort(signal.reason);
+  signal.addEventListener('abort', abortPreparation, {once:true});
+  if (signal.aborted) abortPreparation();
+
+  async function prepareSlide(index) {
+    let frame;
+    try {
+      preparation.signal.throwIfAborted();
+      // Usa il runtime vero della slide: classi, data-build, camera e contenuti
+      // sostitutivi restano sincronizzati come durante Present. Mai showAll.
+      const setup = '<scr' + 'ipt>window.__SLIDEUI=' + JSON.stringify({ atEnd:!allSteps, index, total:docs.length }) + ';' +
+        'window.matchMedia=(function(native){return function(q){return q.includes("prefers-reduced-motion")?' +
+        '{matches:!q.includes("no-preference"),media:q,onchange:null,addListener:function(){},removeListener:function(){},addEventListener:function(){},removeEventListener:function(){},dispatchEvent:function(){return true;}}:native(q);};})(window.matchMedia.bind(window));</scr' + 'ipt>' +
+        '<style>*,*::before,*::after{transition:none!important;animation-duration:0s!important;animation-delay:0s!important}</style>';
+      const html = /<head[^>]*>/i.test(docs[index])
+        ? docs[index].replace(/<head[^>]*>/i, m => m + setup) : setup + docs[index];
+      frame = await loadExportFrame(html, staging, preparation.signal);
+      await waitForExportAssets(frame, preparation.signal);
+      await settleExportState(frame, true);
+      preparation.signal.throwIfAborted();
+      const doc = frame.contentDocument;
+      const build = doc.querySelector('[data-steps][data-build]');
+      const values = new Set(Array.from(doc.querySelectorAll('[data-step]'), el => parseFloat(el.dataset.step) || 0));
+      const pageCount = !allSteps ? 1 : build ? Math.max(1, parseInt(build.dataset.steps, 10) || 1) : values.size + 1;
+      const fontEmbedCSS = await htmlToImage.getFontEmbedCSS(doc.body);
+      preparation.signal.throwIfAborted();
+      return {frame, pageCount, fontEmbedCSS};
+    } catch (error) {
+      frame?.remove();
+      // Un errore della slide precaricata viene gestito quando arriva il suo turno.
+      return {error};
+    }
+  }
+
+  try {
+    let nextSlide = docs.length ? prepareSlide(0) : null;
+    for (let index = 0; index < docs.length; index++) {
+      signal.throwIfAborted();
+      $('export-progress').textContent = `Preparazione slide ${index + 1} di ${docs.length}…`;
+      const ready = await nextSlide;
+      if (ready.error) throw ready.error;
+      const {frame, pageCount, fontEmbedCSS} = ready;
+      // Mentre acquisisce la slide corrente, prepara formule e font della prossima.
+      // Restano in memoria al massimo due slide, sempre fuori schermo.
+      nextSlide = index + 1 < docs.length ? prepareSlide(index + 1) : null;
+      try {
+        for (let step = 0; step < pageCount; step++) {
+          signal.throwIfAborted();
+          $('export-progress').textContent = `Slide ${index + 1}/${docs.length} · stato ${step + 1}/${pageCount} · pagina ${pdf.getPageCount() + 1}…`;
+          if (step) {
+            frame.contentWindow.dispatchEvent(new frame.contentWindow.MessageEvent('message', {data:{slideui:'key', key:'ArrowRight'}}));
+            await settleExportState(frame);
+          }
+          const bytes = await captureExportState(frame, fontEmbedCSS);
+          const image = await pdf.embedJpg(bytes);
+          const page = pdf.addPage([1280, 720]);
+          page.setRotation(PDFLib.degrees(0));
+          page.drawImage(image, { x:0, y:0, width:1280, height:720 });
+          // Riserva l'ultimo 5% alla serializzazione del file PDF.
+          setExportPDFProgress(5 + 90 * (index + (step + 1) / pageCount) / docs.length);
+        }
+      } finally { frame.remove(); }
+    }
+    signal.throwIfAborted();
+    $('export-progress').textContent = 'Salvataggio PDF…';
+    return new Blob([await pdf.save()], {type:'application/pdf'});
+  } finally {
+    preparation.abort();
+    signal.removeEventListener('abort', abortPreparation);
+    staging.remove();
+  }
+}
+
+function cancelPresentationExport() {
+  if (exportController) exportController.abort();
+  else $('export-dialog').close();
+}
+$('export-dialog').addEventListener('cancel', e => {
+  if (exportController) { e.preventDefault(); cancelPresentationExport(); }
+});
+
+async function exportPresentation() {
+  if (!slides.length || exportController) return;
   const format = $('export-format').value;
   const allSteps = $('export-steps').checked;
-  // Apri subito la finestra, durante il click, per evitare il blocco dei popup.
-  const pdfWindow = format !== 'html' ? window.open('', '_blank') : null;
-  if (format !== 'html' && !pdfWindow) {
-    alert('Consenti l’apertura di una nuova finestra per esportare il PDF, poi riprova.');
-    return;
+  exportController = new AbortController();
+  $('export-submit').disabled = true;
+  $('export-format').disabled = true;
+  $('export-steps').disabled = true;
+  $('export-progress').hidden = false;
+  $('export-progress').textContent = 'Preparazione esportazione…';
+  $('export-meter').hidden = format === 'html';
+  setExportPDFProgress(0);
+  try {
+    flushAll();
+    const docs = slides.map(s => inlineAssets(s.html, s.path));
+    if (format !== 'pdf') downloadPresentationHTML(docs);
+    if (format !== 'html') {
+      const blob = await preparePresentationPDF(docs, allSteps, exportController.signal);
+      exportController.signal.throwIfAborted();
+      setExportPDFProgress(100);
+      downloadExport(blob, 'presentation.pdf');
+    }
+    $('export-dialog').close();
+    setStatus('Esportazione completata.');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      $('export-dialog').close();
+      setStatus('Esportazione annullata.');
+    } else {
+      $('export-progress').textContent = 'Esportazione interrotta: ' + error.message;
+      setStatus('Esportazione interrotta.', true);
+    }
+  } finally {
+    exportController = null;
+    $('export-submit').disabled = false;
+    $('export-format').disabled = false;
+    updateExportOptions();
   }
-  flushAll();
-  const docs = slides.map(s => inlineAssets(s.html, s.path));
-  $('export-dialog').close();
-  if (format !== 'pdf') downloadPresentationHTML(docs);
-  if (pdfWindow) preparePresentationPDF(pdfWindow, docs, allSteps);
 }
 
 function copyPrompt() {

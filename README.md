@@ -7,3 +7,15 @@ The idea is very simple: build a simple tool that can be used to create presenta
 ## How to Use?
 
 ...
+
+## Export
+
+Click **Export** to download HTML, PDF, or both. PDF downloads directly, with
+landscape 16:9 pages and all presentation steps included by default. Uncheck
+the steps option to export only the final state of each slide.
+
+PDF pages capture each slide's actual rendered state, including formulas and
+diagrams. PDF export always uses compressed 1280×720 (720p) images for smaller files.
+The next slide is prepared while the current slide is captured to speed up
+generation. Text in the PDF is rasterized.
+Keep the bundled `vendor/` folder next to `pmaker.html` for PDF export.
