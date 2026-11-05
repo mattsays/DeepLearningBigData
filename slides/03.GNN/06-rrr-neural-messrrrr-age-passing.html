@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Neural Message Passing</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    /* One persistent graph, a moving camera and one caption per click (same idea as the SNN "one neuron" slide).
+       Click 0: the graph. Click 1: message. Click 2: aggregation. Click 3: update.
+       The shared slideui.js only toggles .step-visible on the three hidden .phase-marker elements;
+       the script at the bottom reads them and sets data-phase on .nmp. */
+    .nmp { padding: 28px 48px 34px; justify-content: flex-start; --ink: #4f46e5; --muted: #475569; }
+    .nmp .title { font-size: 2.75rem; margin: 0 0 4px; }
+    .nmp .subtitle { font-size: 1.5rem; margin: 0 0 14px; }
+    .phase-marker { display: none; }
+
+    /* Stage */
+    .stage { position: relative; flex: none; height: 410px; background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 16px; overflow: hidden; }
+    .stage-svg { display: block; width: 100%; height: 100%; }
+    .stage-legend { position: absolute; left: 18px; bottom: 12px; display: flex; align-items: center; gap: 10px;
+      font-size: 1rem; color: var(--muted); }
+    .glabel { font-size: 17px; font-weight: 700; fill: #475569; }
+    .node-id { fill: #fff; font-size: 26px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+    .pill-text { fill: #fff; font-size: 16px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+
+    /* Captions: all stacked, only the one matching data-phase is visible */
+    .nmp-caption { position: relative; flex: 1; min-height: 0; margin-top: 14px; }
+    .cap { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center;
+      padding: 10px 26px; background: #eef2ff; border-left: 6px solid #6366f1; border-radius: 0 16px 16px 0;
+      opacity: 0; visibility: hidden; transform: translateY(10px);
+      transition: opacity .4s ease, transform .5s ease, visibility .4s; }
+    .nmp[data-phase="0"] .cap-0, .nmp[data-phase="1"] .cap-1,
+    .nmp[data-phase="2"] .cap-2, .nmp[data-phase="3"] .cap-3 {
+      opacity: 1; visibility: visible; transform: none; transition-delay: .2s; }
+    .cap-head { display: flex; align-items: center; gap: 14px; margin: 0 0 6px; }
+    .cap-num { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: #fff;
+      font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .cap-title { font-size: 28px; font-weight: 800; color: var(--ink); line-height: 1.2; }
+    .cap-math { margin-left: auto; padding: 4px 18px; background: #fff; border-radius: 10px; border: 1px solid #e0e7ff; }
+    .cap-math math { font-size: 28px; color: #1e293b; }
+    .cap p { margin: 0; font-size: 22px; line-height: 1.38; color: #1e293b; }
+    .cap-0 p { font-size: 24px; }
+
+    @media (prefers-reduced-motion: reduce) { .cap { transition: none; } }
+  </style>
+</head>
+<body>
+<!-- Source: papers/GNN.typ (message passing: message, aggregation, update).
+     Illustrative graph: the same four-node graph used on the previous slides (node 3 is the hub). -->
+<!-- SPEAKER NOTES:
+Click 1 (message): every node sends a message along each edge, in both directions. The message is built by a learnable function M from the sender state, the receiver state and the edge features.
+Click 2 (aggregation): focus on node 3, which receives the messages of nodes 1, 2 and 4. They are merged into one vector with a permutation-invariant function (SUM, MEAN or MAX). The bars of the aggregate are the mean of the three neighbor vectors.
+Click 3 (update): node 3 combines its old state h and the aggregate a through a learnable MLP + activation and obtains a new state h'. The bar heights are purely illustrative.
+-->
+<div class="slide-layout nmp" data-phase="0">
+
+  <!-- Header -->
+  <div>
+    <div class="title">Neural Message Passing</div>
+    <div class="subtitle">Nodes learn by collecting, aggregating and updating information from their neighbors</div>
+  </div>
+
+  <!-- Invisible markers: the shared runtime reveals them one per click -->
+  <i class="phase-marker" data-step="1" aria-hidden="true"></i>
+  <i class="phase-marker" data-step="2" aria-hidden="true"></i>
+  <i class="phase-marker" data-step="3" aria-hidden="true"></i>
+
+  <!-- Stage: the graph and its animations -->
+  <div class="stage">
+    <svg class="stage-svg" viewBox="0 0 1184 410" role="img"
+         aria-label="A four-node graph. First every node sends messages to its neighbors, then node 3 aggregates the incoming messages, then node 3 updates its state.">
+      <title>Message passing on a four-node graph</title>
+      <defs>
+        <marker id="arrowhead" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
+          <path d="M0 0L4 2L0 4z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Edges: 1-2, 1-3, 2-3, 3-4 -->
+      <g id="edges" fill="none" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round">
+        <path id="edge12" d="M407 92 L777 92"/>
+        <path d="M407 92 L592 202"/>
+        <path d="M777 92 L592 202"/>
+        <path d="M592 202 L592 330"/>
+      </g>
+
+      <!-- Aggregation collector around node 3 (phase 2) -->
+      <circle id="ring" cx="592" cy="202" r="42" fill="rgba(100,116,139,0.10)" stroke="#64748b" stroke-width="3"
+              stroke-dasharray="8 7" opacity="0"/>
+
+      <!-- Update scene (phase 3): arrows, "U" pill and the empty slot of the new state -->
+      <g id="upd" opacity="0">
+        <g fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round">
+          <path d="M460 156 C505 156 520 190 566 192" marker-end="url(#arrowhead)"/>
+          <path d="M460 246 C505 246 520 214 566 212" marker-end="url(#arrowhead)"/>
+          <path d="M626 202 H668" marker-end="url(#arrowhead)"/>
+        </g>
+        <rect id="slot" x="668" y="150" width="66" height="84" rx="10" fill="none" stroke="#94a3b8" stroke-width="2.5"
+              stroke-dasharray="6 6"/>
+        <g id="pill">
+          <rect x="500" y="244" width="184" height="30" rx="15" fill="#4f46e5"/>
+          <text class="pill-text" x="592" y="259">U: MLP + activation</text>
+        </g>
+      </g>
+
+      <!-- Nodes 1, 2, 4 and their state vectors -->
+      <g id="others">
+        <circle class="halo" data-node="1" cx="407" cy="92" r="40" fill="none" stroke="#64748b" stroke-width="4" opacity="0"/>
+        <circle class="halo" data-node="2" cx="777" cy="92" r="40" fill="none" stroke="#64748b" stroke-width="4" opacity="0"/>
+        <circle class="halo" data-node="4" cx="592" cy="330" r="40" fill="none" stroke="#64748b" stroke-width="4" opacity="0"/>
+        <circle cx="407" cy="92" r="30" fill="#2563eb" stroke="#fff" stroke-width="3"/>
+        <circle cx="777" cy="92" r="30" fill="#db2777" stroke="#fff" stroke-width="3"/>
+        <circle cx="592" cy="330" r="30" fill="#d97706" stroke="#fff" stroke-width="3"/>
+        <text class="node-id" x="407" y="92">1</text>
+        <text class="node-id" x="777" y="92">2</text>
+        <text class="node-id" x="592" y="330">4</text>
+        <g id="glyph1" class="glyph" fill="#2563eb" transform="translate(318 112)"><g class="bars"></g><path d="M-4 3H49" stroke="#cbd5e1" stroke-width="2"/><text class="glabel" x="0" y="-48">h<tspan dy="5" font-size="13">1</tspan></text></g>
+        <g id="glyph2" class="glyph" fill="#db2777" transform="translate(821 112)"><g class="bars"></g><path d="M-4 3H49" stroke="#cbd5e1" stroke-width="2"/><text class="glabel" x="0" y="-48">h<tspan dy="5" font-size="13">2</tspan></text></g>
+        <g id="glyph4" class="glyph" fill="#d97706" transform="translate(633 350)"><g class="bars"></g><path d="M-4 3H49" stroke="#cbd5e1" stroke-width="2"/><text class="glabel" x="0" y="-48">h<tspan dy="5" font-size="13">4</tspan></text></g>
+      </g>
+
+      <!-- Node 3 (the focus node) -->
+      <g id="node3">
+        <circle id="halo3" cx="592" cy="202" r="40" fill="none" stroke="#64748b" stroke-width="4" opacity="0"/>
+        <circle id="disc3" cx="592" cy="202" r="30" fill="#059669" stroke="#fff" stroke-width="3"/>
+        <text class="node-id" x="592" y="202">3</text>
+      </g>
+
+      <!-- Old state of node 3, aggregate, new state -->
+      <g id="glyphH" class="glyph" fill="#059669" transform="translate(649 280)"><g class="bars"></g><path d="M-4 3H49" stroke="#cbd5e1" stroke-width="2"/><text class="glabel" x="0" y="-48">h<tspan dy="5" font-size="13">3</tspan></text></g>
+      <g id="glyphA" class="glyph" fill="#64748b" transform="translate(494 280)" opacity="0"><g class="bars"></g><path d="M-4 3H49" stroke="#cbd5e1" stroke-width="2"/>
+        <g transform="translate(0 -66)"><rect width="26" height="20" rx="6" fill="#64748b"/><text class="pill-text" x="13" y="10">Σ</text></g>
+        <text class="glabel" x="34" y="-50">a<tspan dy="5" font-size="13">3</tspan></text></g>
+      <g id="glyphN" class="glyph" fill="#059669" transform="translate(677 222)" opacity="0"><g class="bars"></g><path d="M-4 3H49" stroke="#cbd5e1" stroke-width="2"/><text class="glabel" x="0" y="-48">h<tspan dy="5" font-size="13">3</tspan><tspan dy="-5">′</tspan></text></g>
+
+      <!-- Messages and flow dots (created by the script) -->
+      <g id="packets"></g>
+      <g id="dots"></g>
+    </svg>
+
+    <!-- Legend -->
+    <div class="stage-legend">
+      <svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true">
+        <rect x="1" y="8" width="8" height="14" rx="2" fill="#94a3b8"/>
+        <rect x="13" y="2" width="8" height="20" rx="2" fill="#94a3b8"/>
+        <rect x="25" y="12" width="8" height="10" rx="2" fill="#94a3b8"/>
+      </svg>
+      <span>= state vector of a node</span>
+    </div>
+  </div>
+
+  <!-- Captions -->
+  <div class="nmp-caption">
+    <div class="cap cap-0">
+      <p>Every node holds a state vector <em>h</em>. One round of message passing refreshes all of them in three phases: message, aggregation, update.</p>
+    </div>
+
+    <div class="cap cap-1">
+      <div class="cap-head">
+        <span class="cap-num">1</span><span class="cap-title">Message</span>
+        <span class="cap-math"><math aria-label="m from u to v equals M of h u, h v and e u v"><msub><mi>m</mi><mrow><mi>u</mi><mo>→</mo><mi>v</mi></mrow></msub><mo>=</mo><mi>M</mi><mo stretchy="false">(</mo><msub><mi>h</mi><mi>u</mi></msub><mo>,</mo><msub><mi>h</mi><mi>v</mi></msub><mo>,</mo><msub><mi>e</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mo stretchy="false">)</mo></math></span>
+      </div>
+      <p>Every node sends a message to each of its neighbors. A learnable function <em>M</em> builds it from the two node states and the edge features.</p>
+    </div>
+
+    <div class="cap cap-2">
+      <div class="cap-head">
+        <span class="cap-num">2</span><span class="cap-title">Aggregation</span>
+        <span class="cap-math"><math aria-label="a v equals AGG of the messages m from u to v, for u in the neighborhood of v"><msub><mi>a</mi><mi>v</mi></msub><mo>=</mo><mi mathvariant="normal">AGG</mi><mo stretchy="false">(</mo><mo stretchy="false">{</mo><msub><mi>m</mi><mrow><mi>u</mi><mo>→</mo><mi>v</mi></mrow></msub><mo>:</mo><mi>u</mi><mo>∈</mo><mi mathvariant="script">N</mi><mo stretchy="false">(</mo><mi>v</mi><mo stretchy="false">)</mo><mo stretchy="false">}</mo><mo stretchy="false">)</mo></math></span>
+      </div>
+      <p>Node 3 gathers the messages of all its neighbors into one vector, with SUM, MEAN or MAX. The result cannot depend on the order of arrival: the aggregation is permutation-invariant.</p>
+    </div>
+
+    <div class="cap cap-3">
+      <div class="cap-head">
+        <span class="cap-num">3</span><span class="cap-title">Update</span>
+        <span class="cap-math"><math aria-label="h prime v equals U of h v and a v"><msubsup><mi>h</mi><mi>v</mi><mo>′</mo></msubsup><mo>=</mo><mi>U</mi><mo stretchy="false">(</mo><msub><mi>h</mi><mi>v</mi></msub><mo>,</mo><msub><mi>a</mi><mi>v</mi></msub><mo stretchy="false">)</mo></math></span>
+      </div>
+      <p>Node 3 combines its old state with the aggregate through a learnable MLP and an activation. It learns how to mix the two, not just copy them.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  function start() {
+    var slide = document.querySelector('.nmp');
+    if (!slide) return;
+    var svg = slide.querySelector('.stage-svg');
+    var NS = 'http://www.w3.org/2000/svg';
+    var opts = window.__SLIDEUI || {};
+    var motion = matchMedia('(prefers-reduced-motion: reduce)');
+    var markers = Array.prototype.slice.call(slide.querySelectorAll('.phase-marker'));
+    var byId = function (id) { return svg.querySelector('#' + id); };
+    var clamp = function (x) { return Math.max(0, Math.min(1, x)); };
+    var lerp = function (a, b, t) { return a + (b - a) * t; };
+    var easeIO = function (t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+    var easeOut = function (t) { return 1 - Math.pow(1 - t, 3); };
+    var seg = function (p, a, b) { return clamp((p - a) / (b - a)); };   // progress of p inside [a, b]
+    var r2 = function (v) { return Math.round(v * 100) / 100; };
+
+    var W = 1184, H = 410, R = 30, BAR = 40;
+    var NODE = { 1: { x: 407, y: 92, c: '#2563eb' }, 2: { x: 777, y: 92, c: '#db2777' },
+                 3: { x: 592, y: 202, c: '#059669' }, 4: { x: 592, y: 330, c: '#d97706' } };
+    // Illustrative state vectors. The aggregate is the mean of the neighbors of node 3 (1, 2, 4);
+    // the new state is "learned", so it differs from both the old state and the aggregate.
+    var VEC = { 1: [.85, .35, .6], 2: [.4, .8, .5], 3: [.55, .6, .3], 4: [.3, .5, .9] };
+    var AGG = [0, 1, 2].map(function (i) { return (VEC[1][i] + VEC[2][i] + VEC[4][i]) / 3; });
+    var NEW = [.85, .3, .88];
+
+    // ---- state vector glyphs (three bars) ----
+    function makeGlyph(id, vals) {
+      var el = byId(id), holder = el.querySelector('.bars'), bars = [];
+      for (var i = 0; i < 3; i++) {
+        var r = document.createElementNS(NS, 'rect');
+        r.setAttribute('x', i * 17); r.setAttribute('width', 11); r.setAttribute('rx', 2);
+        holder.appendChild(r); bars.push(r);
+      }
+      var g = { el: el, bars: bars, vals: vals };
+      setBars(g, 1);
+      return g;
+    }
+    function setBars(g, k) {
+      g.bars.forEach(function (r, i) {
+        var h = Math.max(1.5, g.vals[i] * BAR * k);
+        r.setAttribute('y', r2(-h)); r.setAttribute('height', r2(h));
+      });
+    }
+    var G = { h: makeGlyph('glyphH', VEC[3]), a: makeGlyph('glyphA', AGG), n: makeGlyph('glyphN', NEW) };
+    makeGlyph('glyph1', VEC[1]); makeGlyph('glyph2', VEC[2]); makeGlyph('glyph4', VEC[4]);
+
+    // ---- messages: one envelope per directed edge ----
+    var PAIRS = [[1, 2], [2, 1], [1, 3], [3, 1], [2, 3], [3, 2], [3, 4], [4, 3]];
+    var packetsLayer = byId('packets');
+    var PK = PAIRS.map(function (pr) {
+      var a = NODE[pr[0]], b = NODE[pr[1]];
+      var dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+      var nx = -uy, ny = ux, off = 11, gap = R + 8;      // each direction travels in its own lane
+      var el = document.createElementNS(NS, 'g');
+      el.setAttribute('opacity', 0);
+      el.innerHTML = '<rect x="-11" y="-8" width="22" height="16" rx="3" fill="' + a.c + '" stroke="#fff" stroke-width="2"/>' +
+                     '<path d="M-9 -6L0 2L9 -6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      packetsLayer.appendChild(el);
+      return { el: el, from: pr[0], to: pr[1],
+               sx: a.x + ux * gap + nx * off, sy: a.y + uy * gap + ny * off,
+               ex: b.x - ux * gap + nx * off, ey: b.y - uy * gap + ny * off };
+    });
+    var INBOUND = [[1, 3], [2, 3], [4, 3]].map(function (w) {
+      for (var i = 0; i < PK.length; i++) if (PK[i].from === w[0] && PK[i].to === w[1]) return i;
+    });
+    function place(el, x, y, sc, op) {
+      el.setAttribute('transform', 'translate(' + r2(x) + ' ' + r2(y) + ') scale(' + r2(sc) + ')');
+      el.setAttribute('opacity', r2(op));
+    }
+
+    // ---- flow dots of the update scene ----
+    var CURVES = [
+      [[460, 156], [505, 156], [520, 190], [566, 192]],
+      [[460, 246], [505, 246], [520, 214], [566, 212]],
+      [[626, 202], [640, 202], [654, 202], [668, 202]]
+    ];
+    function bezier(c, t) {
+      var u = 1 - t, a = u * u * u, b = 3 * u * u * t, d = 3 * u * t * t, e = t * t * t;
+      return [a * c[0][0] + b * c[1][0] + d * c[2][0] + e * c[3][0], a * c[0][1] + b * c[1][1] + d * c[2][1] + e * c[3][1]];
+    }
+    var dotsLayer = byId('dots');
+    var DOTS = [
+      { curve: 0, off: 0, color: '#059669' }, { curve: 0, off: .5, color: '#059669' },
+      { curve: 1, off: 0, color: '#64748b' }, { curve: 1, off: .5, color: '#64748b' },
+      { curve: 2, off: 0, color: '#059669' }
+    ].map(function (d) {
+      var el = document.createElementNS(NS, 'circle');
+      el.setAttribute('r', 6); el.setAttribute('fill', d.color); el.setAttribute('stroke', '#fff'); el.setAttribute('stroke-width', 2);
+      el.setAttribute('opacity', 0); dotsLayer.appendChild(el); d.el = el; return d;
+    });
+
+    // ---- continuous parameters (tweened between phases) ----
+    var others = byId('others'), edges = byId('edges'), edge12 = byId('edge12'), ring = byId('ring'), upd = byId('upd'), pill = byId('pill');
+    var halos = { 1: svg.querySelector('.halo[data-node="1"]'), 2: svg.querySelector('.halo[data-node="2"]'),
+                  3: byId('halo3'), 4: svg.querySelector('.halo[data-node="4"]') };
+    var disc3 = byId('disc3');
+    var KEYS = ['cx', 'cy', 'w', 'nodesOp', 'edgesOp', 'e12', 'ring', 'upd', 'hx', 'hy', 'ax', 'ay'];
+    var REST = { cx: 592, cy: 211, w: 950, nodesOp: 1, edgesOp: 1, e12: 1, ring: 0, upd: 0, hx: 649, hy: 280, ax: 494, ay: 280 };
+    function preset(o) { var p = {}; KEYS.forEach(function (k) { p[k] = (k in o) ? o[k] : REST[k]; }); return p; }
+    var PRE = {
+      0: preset({}),
+      1: preset({}),
+      2: preset({ cy: 208, w: 900, e12: .12, ring: 1 }),
+      3: preset({ cy: 205, w: 620, nodesOp: .05, edgesOp: .06, ring: 0, upd: 1, hx: 407, hy: 176, ax: 407, ay: 266 })
+    };
+    var cur = Object.assign({}, PRE[0]), from = Object.assign({}, cur), target = Object.assign({}, cur);
+
+    function applyParams() {
+      var h = cur.w * H / W;
+      svg.setAttribute('viewBox', [cur.cx - cur.w / 2, cur.cy - h / 2, cur.w, h].map(r2).join(' '));
+      others.setAttribute('opacity', r2(cur.nodesOp));
+      edges.setAttribute('opacity', r2(cur.edgesOp));
+      edge12.setAttribute('opacity', r2(cur.e12));
+      ring.setAttribute('opacity', r2(cur.ring));
+      upd.setAttribute('opacity', r2(cur.upd));
+      G.h.el.setAttribute('transform', 'translate(' + r2(cur.hx) + ' ' + r2(cur.hy) + ')');
+      G.a.el.setAttribute('transform', 'translate(' + r2(cur.ax) + ' ' + r2(cur.ay) + ')');
+    }
+
+    // ---- the looping animation of each phase ----
+    var PERIOD = { 0: 4000, 1: 4600, 2: 5200, 3: 6400 };
+    var STILL = { 0: 0, 1: .36, 2: .84, 3: .86 };      // representative frame for static rendering
+
+    function paint(ph, p, still, now) {
+      var i, haloOp = { 1: 0, 2: 0, 3: 0, 4: 0 }, hOp = 1, aOp = 0, aK = 1, nOp = 0, nK = 0;
+      var ringW = 3, pillOp = 0, r3 = R, haloColor = '#64748b';
+      PK.forEach(function (k) { k.el.setAttribute('opacity', 0); });
+      DOTS.forEach(function (d) { d.el.setAttribute('opacity', 0); });
+
+      if (ph === 1) {                                  // every node sends a message to every neighbor
+        PK.forEach(function (k, idx) {
+          var t = seg(p, .06 + idx * .008, .56 + idx * .008);
+          if (t <= 0 || t >= 1) return;
+          var e = easeIO(t);
+          place(k.el, lerp(k.sx, k.ex, e), lerp(k.sy, k.ey, e),
+                t < .12 ? lerp(.4, 1, t / .12) : t > .85 ? lerp(1, .5, (t - .85) / .15) : 1,
+                t < .08 ? t / .08 : t > .9 ? (1 - t) / .1 : 1);
+        });
+        var arrive = Math.sin(Math.PI * seg(p, .5, .7)) * .7;
+        haloOp = { 1: arrive, 2: arrive, 3: arrive, 4: arrive };
+      } else if (ph === 2) {                           // node 3 receives and merges the messages
+        var flash = 0;
+        INBOUND.forEach(function (idx, j) {
+          var a = .08 + j * .05, b = a + .3, k = PK[idx], t = seg(p, a, b);
+          flash = Math.max(flash, Math.sin(Math.PI * seg(p, b - .04, b + .08)));
+          if (t <= 0 || t >= 1) return;
+          var e = easeIO(t);
+          place(k.el, lerp(k.sx, k.ex, e), lerp(k.sy, k.ey, e),
+                t < .12 ? lerp(.4, 1, t / .12) : t > .8 ? lerp(1, .35, (t - .8) / .2) : 1,
+                t < .08 ? t / .08 : t > .85 ? (1 - t) / .15 : 1);
+        });
+        ringW = 3 + 4 * flash;
+        r3 = R + 3 * flash;
+        aOp = p < .5 ? 0 : p > .94 ? lerp(1, 0, (p - .94) / .06) : seg(p, .5, .56);
+        aK = easeOut(seg(p, .5, .74));
+      } else if (ph === 3) {                           // node 3 mixes old state and aggregate into a new state
+        var flow = seg(p, .12, .45), out = seg(p, .45, .75), reset = seg(p, .93, 1);
+        hOp = p < .93 ? lerp(1, .3, easeIO(flow)) : lerp(.3, 1, reset);
+        aOp = hOp;
+        nOp = p < .45 ? 0 : p < .93 ? seg(p, .45, .53) : lerp(1, 0, reset);
+        nK = easeOut(out);
+        pillOp = seg(p, .12, .22) * (1 - seg(p, .8, .9));
+        r3 = R + 4 * Math.sin(Math.PI * seg(p, .2, .7));
+        haloOp[3] = .85 * Math.sin(Math.PI * seg(p, .15, .8));
+        haloColor = '#059669';
+        if (flow > 0 && flow < 1) {
+          DOTS.slice(0, 4).forEach(function (d) {
+            var t = (flow * 1.4 + d.off) % 1, pt = bezier(CURVES[d.curve], t);
+            d.el.setAttribute('cx', r2(pt[0])); d.el.setAttribute('cy', r2(pt[1]));
+            d.el.setAttribute('opacity', t < .1 ? t / .1 : t > .88 ? (1 - t) / .12 : 1);
+          });
+        }
+        if (out > 0 && out < 1) {
+          var o = bezier(CURVES[2], easeIO(out));
+          DOTS[4].el.setAttribute('cx', r2(o[0])); DOTS[4].el.setAttribute('cy', r2(o[1]));
+          DOTS[4].el.setAttribute('opacity', 1 - seg(out, .8, 1));
+        }
+      }
+
+      [1, 2, 3, 4].forEach(function (n) { halos[n].setAttribute('opacity', r2(haloOp[n])); });
+      halos[3].setAttribute('stroke', haloColor);
+      disc3.setAttribute('r', r2(r3));
+      ring.setAttribute('stroke-width', r2(ringW));
+      ring.setAttribute('stroke-dashoffset', r2(-(now || 0) / 1000 * 16));
+      pill.setAttribute('opacity', r2(pillOp));
+      G.h.el.setAttribute('opacity', r2(hOp));
+      G.a.el.setAttribute('opacity', r2(aOp)); setBars(G.a, aK);
+      G.n.el.setAttribute('opacity', r2(nOp)); setBars(G.n, nK);
+    }
+
+    // ---- driver ----
+    var phase = 0, frame = null, moveStart = 0, cycleStart = 0, inView = true, DUR = 950;
+    function readPhase() {
+      if (opts.showAll) return 3;                      // editor preview / export: show the final state
+      var n = 0;
+      markers.forEach(function (m) { if (m.classList.contains('step-visible')) n = Math.max(n, Number(m.getAttribute('data-step')) || 0); });
+      return Math.min(3, n);
+    }
+    function snap() {
+      cur = Object.assign({}, target); applyParams(); paint(phase, STILL[phase], true, 0);
+    }
+    function tick(now) {
+      var t = clamp((now - moveStart) / DUR), e = easeOut(t);
+      KEYS.forEach(function (k) { cur[k] = lerp(from[k], target[k], e); });
+      applyParams();
+      var elapsed = Math.max(0, now - cycleStart);
+      paint(phase, (elapsed % PERIOD[phase]) / PERIOD[phase], false, now);
+      if ((phase > 0 || t < 1) && inView && !document.hidden) frame = requestAnimationFrame(tick); else frame = null;
+    }
+    function sync() {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+      phase = readPhase();
+      slide.setAttribute('data-phase', phase);
+      from = Object.assign({}, cur); target = Object.assign({}, PRE[phase]);
+      moveStart = performance.now(); cycleStart = moveStart + 350;
+      if (opts.showAll || motion.matches || document.hidden || !inView) { snap(); return; }
+      frame = requestAnimationFrame(tick);
+    }
+
+    markers.forEach(function (m) { new MutationObserver(sync).observe(m, { attributes: true, attributeFilter: ['class'] }); });
+    motion.addEventListener('change', sync);
+    document.addEventListener('visibilitychange', sync);
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        var visible = entries[0].isIntersecting;
+        if (visible !== inView) { inView = visible; sync(); }
+      }, { threshold: .01 }).observe(slide);
+    }
+    // First render: no camera movement from a different position.
+    phase = readPhase(); slide.setAttribute('data-phase', phase); target = Object.assign({}, PRE[phase]); snap(); sync();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+</body>
+</html>

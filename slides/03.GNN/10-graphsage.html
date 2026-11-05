@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GraphSAGE</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    /* Mechanism slide: the diagram builds up one click at a time, the formula highlights the part
+       being explained and the caption changes. Loops are SMIL / CSS only; the script at the bottom
+       just copies the current click into data-phase. */
+    .arch-slide { padding: 28px 48px 40px; justify-content: flex-start; --acc: #059669; --soft: #ecfdf5; --ink: #065f46; }
+    .arch-slide .title { font-size: 2.75rem; margin: 0 0 4px; }
+    .arch-slide .subtitle { font-size: 1.5rem; margin: 0 0 12px; }
+    .stage { position: relative; flex: none; height: 340px; background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 16px; overflow: hidden; }
+    .stage > svg { display: block; width: 100%; height: 100%; }
+    .formula-bar { flex: none; margin-top: 10px; height: 62px; display: flex; align-items: center; justify-content: center;
+      gap: 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .formula-bar math { font-size: 27px; color: #1e293b; }
+    .caption-wrap { position: relative; flex: 1; min-height: 0; margin-top: 10px; }
+    .cap { position: absolute; inset: 0; display: flex; align-items: center; padding: 8px 26px; background: var(--soft);
+      border-left: 6px solid var(--acc); border-radius: 0 16px 16px 0; opacity: 0; visibility: hidden;
+      transform: translateY(10px); transition: opacity .4s ease, transform .5s ease, visibility .4s; }
+    .cap p { margin: 0; font-size: 23px; line-height: 1.38; color: #1e293b; }
+    .cap b { color: var(--ink); }
+    .glabel { font-size: 17px; font-weight: 700; fill: #475569; }
+    .pill-text { fill: #fff; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+
+    /* reveal: new elements pop in when their click arrives */
+    .stage [data-step].step-visible .pop { animation: pop .6s cubic-bezier(.22,.61,.36,1) both;
+      transform-box: fill-box; transform-origin: center bottom; }
+    @keyframes pop { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .flow { display: none; }
+      .stage [data-step].step-visible .pop { animation: none; }
+      .cap, .stage * { transition: none !important; }
+    }
+
+    .arch-slide[data-phase="0"] .cap-0,
+    .arch-slide[data-phase="1"] .cap-1,
+    .arch-slide[data-phase="2"] .cap-2,
+    .arch-slide[data-phase="3"] .cap-3,
+    .arch-slide[data-phase="4"] .cap-4 {
+      opacity: 1; visibility: visible; transform: none; transition-delay: .2s; }
+
+    .stage .ed { stroke: #cbd5e1; stroke-width: 5; stroke-linecap: round; fill: none; transition: all .6s ease; }
+    .stage .nb { fill: #fff; stroke: #059669; stroke-width: 3.5; transition: all .6s ease; }
+    .arch-slide:not([data-phase="0"]) .ed-skip { stroke-dasharray: 4 7; opacity: .5; }
+    .arch-slide:not([data-phase="0"]) .nb-skip { fill: #f1f5f9; stroke: #94a3b8; stroke-dasharray: 4 4; opacity: .55; }
+    .arch-slide:not([data-phase="0"]) .nb-keep { fill: #d1fae5; }
+    .arch-slide:not([data-phase="0"]) .ed-keep { stroke: #34d399; }
+    .st { opacity: .55; transition: opacity .5s ease; }
+    .arch-slide[data-all] .st, .arch-slide[data-phase="1"] .st-1, .arch-slide[data-phase="2"] .st-2,
+    .arch-slide[data-phase="3"] .st-3, .arch-slide[data-phase="4"] .st-4 { opacity: 1; }
+    /* the formula part that matches the current click */
+    .formula-bar mrow, .formula-bar msubsup { border-radius: 6px; transition: background .4s ease; }
+    .arch-slide:not([data-all])[data-phase="1"] .f1, .arch-slide:not([data-all])[data-phase="2"] .f2,
+    .arch-slide:not([data-all])[data-phase="3"] .f3, .arch-slide:not([data-all])[data-phase="4"] .f4 { background: #bbf7d0; }
+  </style>
+</head>
+<body>
+<!-- Source: papers/GNN.typ. Mechanism: sample, aggregate, concatenate, transform (Hamilton et al.). -->
+<div class="slide-layout arch-slide" data-phase="0">
+
+  <!-- Header -->
+  <div>
+    <div class="title">GraphSAGE</div>
+    <div class="subtitle">Graph Sample and Aggregate: learn how to build a node's embedding from its neighborhood</div>
+  </div>
+
+  <!-- Stage: the animated mechanism -->
+  <div class="stage">
+<svg viewBox="0 -10 1184 340" role="img" aria-label="GraphSAGE: sample three of six neighbors, aggregate them, concatenate with the node's own vector, then apply W and a nonlinearity.">
+<title>GraphSAGE mechanism</title>
+<defs><marker id="mkG" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0 1L11 6L0 11z" fill="#059669"/></marker><marker id="mkS" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0 1L11 6L0 11z" fill="#64748b"/></marker></defs>
+<path class="ed ed-skip" d="M190 160 L190 56"/>
+<path class="ed ed-keep" d="M190 160 L281 108"/>
+<path class="ed ed-keep" d="M190 160 L281 212"/>
+<path class="ed ed-skip" d="M190 160 L190 264"/>
+<path class="ed ed-skip" d="M190 160 L99 212"/>
+<path class="ed ed-keep" d="M190 160 L99 108"/>
+<circle class="nb nb-skip" cx="190" cy="56" r="16"/>
+<circle class="nb nb-keep" cx="281" cy="108" r="16"/>
+<circle class="nb nb-keep" cx="281" cy="212" r="16"/>
+<circle class="nb nb-skip" cx="190" cy="264" r="16"/>
+<circle class="nb nb-skip" cx="99" cy="212" r="16"/>
+<circle class="nb nb-keep" cx="99" cy="108" r="16"/>
+<circle cx="190" cy="160" r="26" fill="#059669"/><text x="190" y="160" font-size="24" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="central">v</text>
+<g class="glyph "><rect x="20" y="294" width="7" height="10" rx="2" fill="#94a3b8"/><rect x="30" y="288" width="7" height="16" rx="2" fill="#94a3b8"/><rect x="40" y="297" width="7" height="7" rx="2" fill="#94a3b8"/><path d="M16 307 H51" stroke="#cbd5e1" stroke-width="2"/></g><text x="64" y="303" font-size="16" font-weight="600" fill="#475569" text-anchor="start">= feature vector</text>
+<g data-step="1"><g class="st st-1"><text x="383" y="30" font-size="20" font-weight="700" fill="#059669" text-anchor="middle">1 · Sample</text><g class="glyph pop"><rect x="360" y="72" width="12" height="28" rx="2" fill="#059669"/><rect x="377" y="88" width="12" height="12" rx="2" fill="#059669"/><rect x="394" y="78" width="12" height="22" rx="2" fill="#059669"/><path d="M356 103 H410" stroke="#cbd5e1" stroke-width="2"/></g><g class="glyph pop"><rect x="360" y="158" width="12" height="22" rx="2" fill="#059669"/><rect x="377" y="160" width="12" height="20" rx="2" fill="#059669"/><rect x="394" y="146" width="12" height="34" rx="2" fill="#059669"/><path d="M356 183 H410" stroke="#cbd5e1" stroke-width="2"/></g><g class="glyph pop"><rect x="360" y="246" width="12" height="14" rx="2" fill="#059669"/><rect x="377" y="228" width="12" height="32" rx="2" fill="#059669"/><rect x="394" y="242" width="12" height="18" rx="2" fill="#059669"/><path d="M356 263 H410" stroke="#cbd5e1" stroke-width="2"/></g><g class="flow" opacity="0"><g transform="scale(0.62)"><g class="glyph "><rect x="-23" y="-8" width="12" height="28" rx="2" fill="#059669"/><rect x="-6" y="8" width="12" height="12" rx="2" fill="#059669"/><rect x="11" y="-2" width="12" height="22" rx="2" fill="#059669"/></g></g><animateMotion dur="2.6s" begin="-0.5s" repeatCount="indefinite" path="M281 108 L383 80" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.6s" begin="-0.5s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g><g class="flow" opacity="0"><g transform="scale(0.62)"><g class="glyph "><rect x="-23" y="-2" width="12" height="22" rx="2" fill="#059669"/><rect x="-6" y="0" width="12" height="20" rx="2" fill="#059669"/><rect x="11" y="-14" width="12" height="34" rx="2" fill="#059669"/></g></g><animateMotion dur="2.6s" begin="-0.85s" repeatCount="indefinite" path="M99 108 L383 160" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.6s" begin="-0.85s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g><g class="flow" opacity="0"><g transform="scale(0.62)"><g class="glyph "><rect x="-23" y="6" width="12" height="14" rx="2" fill="#059669"/><rect x="-6" y="-12" width="12" height="32" rx="2" fill="#059669"/><rect x="11" y="2" width="12" height="18" rx="2" fill="#059669"/></g></g><animateMotion dur="2.6s" begin="-1.2s" repeatCount="indefinite" path="M281 212 L383 240" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.6s" begin="-1.2s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g></g></g>
+<g data-step="2"><g class="st st-2"><text x="530" y="30" font-size="20" font-weight="700" fill="#059669" text-anchor="middle">2 · Aggregate</text><g class="pop"><rect x="470" y="120" width="120" height="80" rx="12" fill="#dcfce7" stroke="#059669" stroke-width="3"/><text x="530" y="152" font-size="24" font-weight="700" fill="#065f46" text-anchor="middle">AGG</text><text x="530" y="181" font-size="16" font-weight="600" fill="#065f46" text-anchor="middle">mean / pool / LSTM</text></g><path d="M414 80 L466 142" stroke="#059669" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#mkG)"/><path d="M414 160 L466 160" stroke="#059669" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#mkG)"/><path d="M414 240 L466 178" stroke="#059669" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#mkG)"/><g class="flow" opacity="0"><g transform="scale(0.5)"><g class="glyph "><rect x="-23" y="-8" width="12" height="28" rx="2" fill="#059669"/><rect x="-6" y="8" width="12" height="12" rx="2" fill="#059669"/><rect x="11" y="-2" width="12" height="22" rx="2" fill="#059669"/></g></g><animateMotion dur="2.2s" begin="-0.3s" repeatCount="indefinite" path="M414 80 L466 142" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.2s" begin="-0.3s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g><g class="flow" opacity="0"><g transform="scale(0.5)"><g class="glyph "><rect x="-23" y="-2" width="12" height="22" rx="2" fill="#059669"/><rect x="-6" y="0" width="12" height="20" rx="2" fill="#059669"/><rect x="11" y="-14" width="12" height="34" rx="2" fill="#059669"/></g></g><animateMotion dur="2.2s" begin="-0.6s" repeatCount="indefinite" path="M414 160 L466 160" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.2s" begin="-0.6s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g><g class="flow" opacity="0"><g transform="scale(0.5)"><g class="glyph "><rect x="-23" y="6" width="12" height="14" rx="2" fill="#059669"/><rect x="-6" y="-12" width="12" height="32" rx="2" fill="#059669"/><rect x="11" y="2" width="12" height="18" rx="2" fill="#059669"/></g></g><animateMotion dur="2.2s" begin="-0.8999999999999999s" repeatCount="indefinite" path="M414 240 L466 178" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.2s" begin="-0.8999999999999999s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g><path d="M594 160 L634 160" stroke="#059669" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#mkG)"/><g class="glyph pop"><rect x="640" y="158.7" width="12" height="21.3" rx="2" fill="#64748b"/><rect x="657" y="158.7" width="12" height="21.3" rx="2" fill="#64748b"/><rect x="674" y="155.3" width="12" height="24.7" rx="2" fill="#64748b"/><path d="M636 183 H690" stroke="#cbd5e1" stroke-width="2"/></g><text x="663" y="208" font-size="20" font-weight="700" fill="#475569" text-anchor="middle">a</text></g></g>
+<g data-step="3"><g class="st st-3"><text x="799" y="30" font-size="20" font-weight="700" fill="#059669" text-anchor="middle">3 · Concatenate</text><rect class="pop" x="726" y="122" width="146" height="94" rx="12" fill="#fff" stroke="#059669" stroke-width="3" stroke-dasharray="7 5"/><g class="glyph pop"><rect x="744" y="176" width="12" height="16" rx="2" fill="#059669"/><rect x="761" y="164" width="12" height="28" rx="2" fill="#059669"/><rect x="778" y="180" width="12" height="12" rx="2" fill="#059669"/><path d="M740 195 H794" stroke="#cbd5e1" stroke-width="2"/></g><g class="glyph pop"><rect x="808" y="170.7" width="12" height="21.3" rx="2" fill="#64748b"/><rect x="825" y="170.7" width="12" height="21.3" rx="2" fill="#64748b"/><rect x="842" y="167.3" width="12" height="24.7" rx="2" fill="#64748b"/><path d="M804 195 H858" stroke="#cbd5e1" stroke-width="2"/></g><text x="799" y="176" font-size="28" font-weight="700" fill="#065f46" text-anchor="middle">‖</text><text x="799" y="242" font-size="17" font-weight="700" fill="#065f46" text-anchor="middle">concat</text><text x="767" y="112" font-size="17" font-weight="700" fill="#059669" text-anchor="middle">h<tspan dy="5" font-size="13">v</tspan></text><text x="831" y="112" font-size="17" font-weight="700" fill="#475569" text-anchor="middle">a</text><path d="M208 178 C262 330 705 330 767 208" stroke="#059669" stroke-width="2.5" fill="none" stroke-dasharray="6 6" opacity=".55" marker-end="url(#mkG)"/><path d="M663 134 C663 62 831 62 831 144" stroke="#64748b" stroke-width="2.5" fill="none" stroke-dasharray="6 6" opacity=".55" marker-end="url(#mkS)"/><circle class="flow " r="6" fill="#059669" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="3.2s" begin="-0.6s" repeatCount="indefinite" path="M208 178 C262 330 705 330 767 208"/><animate attributeName="opacity" dur="3.2s" begin="-0.6s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle><circle class="flow " r="6" fill="#64748b" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="2.4s" begin="-0.2s" repeatCount="indefinite" path="M663 134 C663 62 831 62 831 144"/><animate attributeName="opacity" dur="2.4s" begin="-0.2s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle></g></g>
+<g data-step="4"><g class="st st-4"><text x="980" y="30" font-size="20" font-weight="700" fill="#059669" text-anchor="middle">4 · Transform</text><path d="M876 160 L924 160" stroke="#059669" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#mkG)"/><g class="pop"><rect x="930" y="124" width="100" height="72" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/><text x="980" y="160" font-size="26" font-weight="700" fill="#5b21b6" text-anchor="middle">W · σ</text></g><path d="M1034 160 L1062 160" stroke="#059669" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#mkG)"/><g class="glyph pop"><rect x="1072" y="152" width="12" height="28" rx="2" fill="#059669"/><rect x="1089" y="168" width="12" height="12" rx="2" fill="#059669"/><rect x="1106" y="146" width="12" height="34" rx="2" fill="#059669"/><path d="M1068 183 H1122" stroke="#cbd5e1" stroke-width="2"/></g><text x="1095" y="212" font-size="18" font-weight="700" fill="#059669" text-anchor="middle">new h<tspan dy="5" font-size="13">v</tspan></text><g class="flow" opacity="0"><g transform="scale(0.4)"><g class="glyph "><rect x="-48.5" y="4" width="12" height="16" rx="2" fill="#059669"/><rect x="-31.5" y="-8" width="12" height="28" rx="2" fill="#059669"/><rect x="-14.5" y="8" width="12" height="12" rx="2" fill="#059669"/><rect x="2.5" y="-1.3" width="12" height="21.3" rx="2" fill="#64748b"/><rect x="19.5" y="-1.3" width="12" height="21.3" rx="2" fill="#64748b"/><rect x="36.5" y="-4.7" width="12" height="24.7" rx="2" fill="#64748b"/></g></g><animateMotion dur="2.2s" begin="-0.5s" repeatCount="indefinite" path="M880 160 L930 160" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.2s" begin="-0.5s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g></g></g>
+</svg>
+  </div>
+
+  <!-- Formula, the active part is highlighted -->
+  <div class="formula-bar"><math aria-label="h v of k equals sigma of W of k times the concatenation of h v of k minus 1 and the aggregation of the sampled neighbors"><mrow class="f4"><msubsup><mi>h</mi><mi>v</mi><mrow><mo>(</mo><mi>k</mi><mo>)</mo></mrow></msubsup></mrow><mo>=</mo><mrow class="f4"><mi>σ</mi><mo stretchy="false">(</mo><msup><mi>W</mi><mrow><mo>(</mo><mi>k</mi><mo>)</mo></mrow></msup><mo>·</mo><mrow class="f3"><mo stretchy="false">[</mo><msubsup><mi>h</mi><mi>v</mi><mrow><mo>(</mo><mi>k</mi><mo>−</mo><mn>1</mn><mo>)</mo></mrow></msubsup><mo stretchy="false">‖</mo><mrow class="f2"><mi mathvariant="normal">AGG</mi><mo stretchy="false">(</mo><mo stretchy="false">{</mo><msubsup><mi>h</mi><mi>u</mi><mrow><mo>(</mo><mi>k</mi><mo>−</mo><mn>1</mn><mo>)</mo></mrow></msubsup><mo>:</mo><mrow class="f1"><mi>u</mi><mo>∈</mo><mi>S</mi><mo stretchy="false">(</mo><mi>v</mi><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo><mo stretchy="false">)</mo></mrow><mo stretchy="false">]</mo></mrow><mo stretchy="false">)</mo></mrow></math></div>
+
+  <!-- One caption per click -->
+  <div class="caption-wrap">
+    <div class="cap cap-0"><p>GraphSAGE does not learn one embedding per node. It learns <b>how to build</b> an embedding from a node's neighborhood.</p></div>
+    <div class="cap cap-1"><p><b>Sample.</b> Pick a fixed number of neighbors at random, here 3 of 6. The cost per node stays constant, even for hubs with thousands of neighbors.</p></div>
+    <div class="cap cap-2"><p><b>Aggregate.</b> Merge the sampled neighbors' vectors into a single one with an aggregator: mean, max-pooling or an LSTM.</p></div>
+    <div class="cap cap-3"><p><b>Concatenate.</b> Attach the aggregate to the node's own vector, so the node keeps its own information next to the neighborhood's.</p></div>
+    <div class="cap cap-4"><p><b>Transform.</b> A learned matrix <em>W</em> and a nonlinearity <em>σ</em> give the new embedding. <em>W</em> and AGG are shared by all nodes, so unseen nodes can be embedded too: GraphSAGE is <b>inductive</b>.</p></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var slide = document.querySelector('.arch-slide');
+  if (!slide) return;
+  var opts = window.__SLIDEUI || {};
+  var items = Array.prototype.slice.call(slide.querySelectorAll('[data-step]'));
+  var last = 0;
+  items.forEach(function (el) { last = Math.max(last, Number(el.getAttribute('data-step')) || 0); });
+  if (opts.showAll) slide.setAttribute('data-all', '');          // editor preview / export: everything bright
+  function sync() {
+    var n = 0;
+    if (opts.showAll) n = last;
+    else items.forEach(function (el) {
+      if (el.classList.contains('step-visible')) n = Math.max(n, Number(el.getAttribute('data-step')) || 0);
+    });
+    slide.setAttribute('data-phase', n);
+  }
+  items.forEach(function (el) { new MutationObserver(sync).observe(el, { attributes: true, attributeFilter: ['class'] }); });
+  sync();
+})();
+</script>
+</body>
+</html>
