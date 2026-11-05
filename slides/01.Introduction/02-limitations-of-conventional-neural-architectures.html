@@ -223,35 +223,9 @@
         </div>
       </div>
 
-    <!-- Existing summary builds also sit on the foreground plane. -->
-    <div id="architecture-map" class="panel" data-step="4">
-      <div style="display: grid; grid-template-columns: 220px 1fr 1fr; gap: 8px; align-items: stretch; font-size: 1.05rem; line-height: 1.4;">
-
-        <!-- Axis header -->
-        <div class="text-muted" style="padding: 4px 10px; font-weight: 700;">Dynamics ↓ / Data →</div>
-        <div class="text-primary" style="padding: 4px 10px; font-weight: 700; text-align: center;">Regular data</div>
-        <div class="text-accent" style="padding: 4px 10px; font-weight: 700; text-align: center;">Graph data</div>
-
-        <!-- Static row -->
-        <div class="text-primary" style="padding: 4px 10px; font-weight: 700; display: flex; align-items: center;">Static dynamics</div>
-        <div class="panel panel-primary" style="padding: 4px 10px; margin: 0; text-align: center;">MLP, CNN, Transformers</div>
-        <div class="panel panel-accent" style="padding: 4px 10px; margin: 0; text-align: center;">GNN</div>
-
-        <!-- Spiking row -->
-        <div class="text-accent" style="padding: 4px 10px; font-weight: 700; display: flex; align-items: center;">Spiking dynamics</div>
-        <div class="panel panel-primary" style="padding: 4px 10px; margin: 0; text-align: center;">SNN</div>
-        <div class="panel panel-accent" style="padding: 4px 10px; margin: 0; text-align: center;">Spiking GNN</div>
-      </div>
-    </div>
-
     <!-- Final build: corresponding architectures beneath the two limitations. -->
     <div id="snn-label" class="panel panel-primary architecture-label text-primary" data-step="6">Spiking Neural Networks</div>
     <div id="gnn-label" class="panel panel-accent architecture-label text-accent" data-step="6">Graph Neural Network</div>
-
-    <!-- Final strip: Spiking GNNs -->
-    <div id="spiking-note" class="quote-block" data-step="5">
-      <strong>Spiking GNNs:</strong> spiking neurons process node-level information, combining message passing with temporal dynamics. SNNs and GNNs address different challenges and are not competing alternatives.
-    </div>
   </div>
 </div>
 
