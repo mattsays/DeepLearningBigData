@@ -1,0 +1,3 @@
+dist/
+tools/pptx_export/.cache/
+__pycache__/
