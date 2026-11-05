@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Graph Attention Network (GAT)</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    /* Mechanism slide: the diagram builds up one click at a time, the formula highlights the part
+       being explained and the caption changes. Loops are SMIL / CSS only; the script at the bottom
+       just copies the current click into data-phase. */
+    .arch-slide { padding: 28px 48px 40px; justify-content: flex-start; --acc: #db2777; --soft: #fdf2f8; --ink: #9d174d; }
+    .arch-slide .title { font-size: 2.75rem; margin: 0 0 4px; }
+    .arch-slide .subtitle { font-size: 1.5rem; margin: 0 0 12px; }
+    .stage { position: relative; flex: none; height: 340px; background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 16px; overflow: hidden; }
+    .stage > svg { display: block; width: 100%; height: 100%; }
+    .formula-bar { flex: none; margin-top: 10px; height: 62px; display: flex; align-items: center; justify-content: center;
+      gap: 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .formula-bar math { font-size: 27px; color: #1e293b; }
+    .caption-wrap { position: relative; flex: 1; min-height: 0; margin-top: 10px; }
+    .cap { position: absolute; inset: 0; display: flex; align-items: center; padding: 8px 26px; background: var(--soft);
+      border-left: 6px solid var(--acc); border-radius: 0 16px 16px 0; opacity: 0; visibility: hidden;
+      transform: translateY(10px); transition: opacity .4s ease, transform .5s ease, visibility .4s; }
+    .cap p { margin: 0; font-size: 23px; line-height: 1.38; color: #1e293b; }
+    .cap b { color: var(--ink); }
+    .glabel { font-size: 17px; font-weight: 700; fill: #475569; }
+    .pill-text { fill: #fff; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+
+    /* reveal: new elements pop in when their click arrives */
+    .stage [data-step].step-visible .pop { animation: pop .6s cubic-bezier(.22,.61,.36,1) both;
+      transform-box: fill-box; transform-origin: center bottom; }
+    @keyframes pop { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .flow { display: none; }
+      .stage [data-step].step-visible .pop { animation: none; }
+      .cap, .stage * { transition: none !important; }
+    }
+
+    .arch-slide[data-phase="0"] .cap-0,
+    .arch-slide[data-phase="1"] .cap-1,
+    .arch-slide[data-phase="2"] .cap-2,
+    .arch-slide[data-phase="3"] .cap-3 {
+      opacity: 1; visibility: visible; transform: none; transition-delay: .2s; }
+    .stage .g-edge { stroke-width: 5px; stroke-linecap: round; fill: none; opacity: .6; transition: stroke-width .9s ease; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .g-e1 { stroke-width: 3.34px; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .g-e2 { stroke-width: 7.42px; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .g-e3 { stroke-width: 2.44px; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .g-e4 { stroke-width: 3.80px; }
+    .stage .t-bar { transition: width .9s ease; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .t-b1 { width: 66.6px !important; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .t-b2 { width: 270.0px !important; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .t-b3 { width: 22.2px !important; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .t-b4 { width: 89.9px !important; }
+    .stage .pill-e, .stage .txt-e, .stage .title-e, .stage .pill-a, .stage .txt-a, .stage .title-a { transition: opacity .5s ease; }
+    .stage .pill-a, .stage .txt-a, .stage .title-a { opacity: 0; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .pill-e, .arch-slide:is([data-phase="2"], [data-phase="3"]) .txt-e,
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .title-e { opacity: 0; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .pill-a, .arch-slide:is([data-phase="2"], [data-phase="3"]) .txt-a,
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .title-a { opacity: 1; }
+    /* formula: one equation per click */
+    .feq { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 10px; opacity: .5; transition: opacity .4s ease, background .4s ease; }
+    .feq-n { flex: none; width: 24px; height: 24px; border-radius: 50%; background: #db2777; color: #fff; font-size: 15px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; }
+    .formula-bar math { font-size: 25px; }
+    .arch-slide:is([data-phase="2"], [data-phase="3"]) .dot-cmp { display: none; }
+    .arch-slide[data-phase="3"]:not([data-all]) .pill-a { opacity: 0; }
+    .arch-slide[data-phase="0"] .feq, .arch-slide[data-all] .feq { opacity: 1; }
+    .arch-slide:not([data-all])[data-phase="1"] .feq-1, .arch-slide:not([data-all])[data-phase="2"] .feq-2,
+    .arch-slide:not([data-all])[data-phase="3"] .feq-3 { opacity: 1; background: #fce7f3; }
+  </style>
+</head>
+<body>
+<!-- Source: papers/GNN.typ. Mechanism: score, softmax, weighted sum (Velickovic et al.). Illustrative weights 0.15, 0.60, 0.05, 0.20; output = sum of alpha * vector. -->
+<div class="slide-layout arch-slide" data-phase="0">
+
+  <!-- Header -->
+  <div>
+    <div class="title">Graph Attention Network (GAT)</div>
+    <div class="subtitle">Learn how much each neighbor matters, instead of weighting all of them the same</div>
+  </div>
+
+  <!-- Stage: the animated mechanism -->
+  <div class="stage">
+<svg viewBox="0 -10 1184 340" role="img" aria-label="Graph attention: score every neighbor, turn the scores into attention weights with a softmax, then take the weighted sum of the neighbor vectors.">
+<title>GAT mechanism</title>
+<defs><marker id="mkP" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0 1L11 6L0 11z" fill="#db2777"/></marker></defs>
+<path class="g-edge g-e1" d="M310 160 L120 48" stroke="#2563eb"/>
+<path class="g-edge g-e2" d="M310 160 L500 48" stroke="#d97706"/>
+<path class="g-edge g-e3" d="M310 160 L120 272" stroke="#7c3aed"/>
+<path class="g-edge g-e4" d="M310 160 L500 272" stroke="#0891b2"/>
+<circle cx="120" cy="48" r="20" fill="#2563eb" stroke="#fff" stroke-width="3"/>
+<g class="glyph "><rect x="44" y="36" width="12" height="32" rx="2" fill="#2563eb"/><rect x="61" y="56" width="12" height="12" rx="2" fill="#2563eb"/><rect x="78" y="48" width="12" height="20" rx="2" fill="#2563eb"/><path d="M40 71 H94" stroke="#cbd5e1" stroke-width="2"/></g>
+<circle cx="500" cy="48" r="20" fill="#d97706" stroke="#fff" stroke-width="3"/>
+<g class="glyph "><rect x="530" y="54" width="12" height="14" rx="2" fill="#d97706"/><rect x="547" y="32" width="12" height="36" rx="2" fill="#d97706"/><rect x="564" y="44" width="12" height="24" rx="2" fill="#d97706"/><path d="M526 71 H580" stroke="#cbd5e1" stroke-width="2"/></g>
+<circle cx="120" cy="272" r="20" fill="#7c3aed" stroke="#fff" stroke-width="3"/>
+<g class="glyph "><rect x="44" y="284" width="12" height="8" rx="2" fill="#7c3aed"/><rect x="61" y="272" width="12" height="20" rx="2" fill="#7c3aed"/><rect x="78" y="256" width="12" height="36" rx="2" fill="#7c3aed"/><path d="M40 295 H94" stroke="#cbd5e1" stroke-width="2"/></g>
+<circle cx="500" cy="272" r="20" fill="#0891b2" stroke="#fff" stroke-width="3"/>
+<g class="glyph "><rect x="530" y="264" width="12" height="28" rx="2" fill="#0891b2"/><rect x="547" y="276" width="12" height="16" rx="2" fill="#0891b2"/><rect x="564" y="284" width="12" height="8" rx="2" fill="#0891b2"/><path d="M526 295 H580" stroke="#cbd5e1" stroke-width="2"/></g>
+<circle cx="310" cy="160" r="26" fill="#db2777"/><text x="310" y="160" font-size="24" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="central">i</text>
+<g class="glyph "><rect x="287" y="104" width="12" height="16" rx="2" fill="#db2777"/><rect x="304" y="110" width="12" height="10" rx="2" fill="#db2777"/><rect x="321" y="92" width="12" height="28" rx="2" fill="#db2777"/><path d="M283 123 H337" stroke="#cbd5e1" stroke-width="2"/></g>
+<g class="glyph "><rect x="592" y="252" width="7" height="10" rx="2" fill="#94a3b8"/><rect x="602" y="246" width="7" height="16" rx="2" fill="#94a3b8"/><rect x="612" y="255" width="7" height="7" rx="2" fill="#94a3b8"/><path d="M588 265 H623" stroke="#cbd5e1" stroke-width="2"/></g><text x="636" y="261" font-size="16" font-weight="600" fill="#475569" text-anchor="start">= feature vector</text>
+<g data-step="1"><g class="pop pill-e"><rect x="185.0" y="89.0" width="60" height="30" rx="15" fill="#fff" stroke="#2563eb" stroke-width="2.5"/><text dominant-baseline="central" x="215" y="105" font-size="19" font-weight="700" fill="#2563eb" text-anchor="middle">1.1</text></g><g class="pill-a"><rect x="185.0" y="89.0" width="60" height="30" rx="15" fill="#fff" stroke="#2563eb" stroke-width="2.5"/><text dominant-baseline="central" x="215" y="105" font-size="19" font-weight="700" fill="#2563eb" text-anchor="middle">0.15</text></g><circle class="flow dot-cmp" r="4" fill="#db2777" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="2.4s" begin="-0.3s" repeatCount="indefinite" path="M310 160 L215.0 104.0"/><animate attributeName="opacity" dur="2.4s" begin="-0.3s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle><circle class="flow dot-cmp" r="4" fill="#2563eb" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="2.4s" begin="-0.3s" repeatCount="indefinite" path="M120 48 L215.0 104.0"/><animate attributeName="opacity" dur="2.4s" begin="-0.3s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle><g class="pop pill-e"><rect x="375.0" y="89.0" width="60" height="30" rx="15" fill="#fff" stroke="#d97706" stroke-width="2.5"/><text dominant-baseline="central" x="405" y="105" font-size="19" font-weight="700" fill="#d97706" text-anchor="middle">2.5</text></g><g class="pill-a"><rect x="375.0" y="89.0" width="60" height="30" rx="15" fill="#fff" stroke="#d97706" stroke-width="2.5"/><text dominant-baseline="central" x="405" y="105" font-size="19" font-weight="700" fill="#d97706" text-anchor="middle">0.60</text></g><circle class="flow dot-cmp" r="4" fill="#db2777" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="2.4s" begin="-0.55s" repeatCount="indefinite" path="M310 160 L405.0 104.0"/><animate attributeName="opacity" dur="2.4s" begin="-0.55s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle><circle class="flow dot-cmp" r="4" fill="#d97706" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="2.4s" begin="-0.55s" repeatCount="indefinite" path="M500 48 L405.0 104.0"/><animate attributeName="opacity" dur="2.4s" begin="-0.55s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle><g class="pop pill-e"><rect x="185.0" y="201.0" width="60" height="30" rx="15" fill="#fff" stroke="#7c3aed" stroke-width="2.5"/><text dominant-baseline="central" x="215" y="217" font-size="19" font-weight="700" fill="#7c3aed" text-anchor="middle">0.0</text></g><g class="pill-a"><rect x="185.0" y="201.0" width="60" height="30" rx="15" fill="#fff" stroke="#7c3aed" stroke-width="2.5"/><text dominant-baseline="central" x="215" y="217" font-size="19" font-weight="700" fill="#7c3aed" text-anchor="middle">0.05</text></g><circle class="flow dot-cmp" r="4" fill="#db2777" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="2.4s" begin="-0.8s" repeatCount="indefinite" path="M310 160 L215.0 216.0"/><animate attributeName="opacity" dur="2.4s" begin="-0.8s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle><circle class="flow dot-cmp" r="4" fill="#7c3aed" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="2.4s" begin="-0.8s" repeatCount="indefinite" path="M120 272 L215.0 216.0"/><animate attributeName="opacity" dur="2.4s" begin="-0.8s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle><g class="pop pill-e"><rect x="375.0" y="201.0" width="60" height="30" rx="15" fill="#fff" stroke="#0891b2" stroke-width="2.5"/><text dominant-baseline="central" x="405" y="217" font-size="19" font-weight="700" fill="#0891b2" text-anchor="middle">1.4</text></g><g class="pill-a"><rect x="375.0" y="201.0" width="60" height="30" rx="15" fill="#fff" stroke="#0891b2" stroke-width="2.5"/><text dominant-baseline="central" x="405" y="217" font-size="19" font-weight="700" fill="#0891b2" text-anchor="middle">0.20</text></g><circle class="flow dot-cmp" r="4" fill="#db2777" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="2.4s" begin="-1.05s" repeatCount="indefinite" path="M310 160 L405.0 216.0"/><animate attributeName="opacity" dur="2.4s" begin="-1.05s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle><circle class="flow dot-cmp" r="4" fill="#0891b2" stroke="#fff" stroke-width="1.5" opacity="0"><animateMotion dur="2.4s" begin="-1.05s" repeatCount="indefinite" path="M500 272 L405.0 216.0"/><animate attributeName="opacity" dur="2.4s" begin="-1.05s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.1;.85;1"/></circle><text class="title-e" x="770" y="40" font-size="21" font-weight="700" fill="#334155" text-anchor="start">attention scores e</text><text class="title-a" x="770" y="40" font-size="21" font-weight="700" fill="#db2777" text-anchor="start">attention weights α</text><circle cx="774" cy="96" r="9" fill="#2563eb"/><rect class="t-bar t-b1" x="816" y="82" height="28" rx="6" fill="#2563eb" style="width:118.8px"/><text dominant-baseline="central" class="txt-e" x="944.8" y="97" font-size="20" font-weight="700" fill="#334155" text-anchor="start">1.1</text><text dominant-baseline="central" class="txt-a" x="892.6" y="97" font-size="20" font-weight="700" fill="#db2777" text-anchor="start">0.15</text><circle cx="774" cy="152" r="9" fill="#d97706"/><rect class="t-bar t-b2" x="816" y="138" height="28" rx="6" fill="#d97706" style="width:270.0px"/><text dominant-baseline="central" class="txt-e" x="1096" y="153" font-size="20" font-weight="700" fill="#334155" text-anchor="start">2.5</text><text dominant-baseline="central" class="txt-a" x="1096" y="153" font-size="20" font-weight="700" fill="#db2777" text-anchor="start">0.60</text><circle cx="774" cy="208" r="9" fill="#7c3aed"/><rect class="t-bar t-b3" x="816" y="194" height="28" rx="6" fill="#7c3aed" style="width:4.0px"/><text dominant-baseline="central" class="txt-e" x="830" y="209" font-size="20" font-weight="700" fill="#334155" text-anchor="start">0.0</text><text dominant-baseline="central" class="txt-a" x="848.2" y="209" font-size="20" font-weight="700" fill="#db2777" text-anchor="start">0.05</text><circle cx="774" cy="264" r="9" fill="#0891b2"/><rect class="t-bar t-b4" x="816" y="250" height="28" rx="6" fill="#0891b2" style="width:151.2px"/><text dominant-baseline="central" class="txt-e" x="977.2" y="265" font-size="20" font-weight="700" fill="#334155" text-anchor="start">1.4</text><text dominant-baseline="central" class="txt-a" x="915.9" y="265" font-size="20" font-weight="700" fill="#db2777" text-anchor="start">0.20</text></g>
+<g data-step="2"><text class="pop" x="816" y="304" font-size="18" font-weight="700" fill="#db2777" text-anchor="start">softmax: weights sum to 1</text></g>
+<g data-step="3"><g class="flow" opacity="0"><g transform="scale(0.4335721829926086)"><g class="glyph "><rect x="-23" y="-12" width="12" height="32" rx="2" fill="#2563eb"/><rect x="-6" y="8" width="12" height="12" rx="2" fill="#2563eb"/><rect x="11" y="0" width="12" height="20" rx="2" fill="#2563eb"/></g></g><animateMotion dur="2.6s" begin="-0.4s" repeatCount="indefinite" path="M140.7 60.2 L280.7 142.7" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.6s" begin="-0.4s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g><g class="flow" opacity="0"><g transform="scale(0.8416619120429971)"><g class="glyph "><rect x="-23" y="6" width="12" height="14" rx="2" fill="#d97706"/><rect x="-6" y="-16" width="12" height="36" rx="2" fill="#d97706"/><rect x="11" y="-4" width="12" height="24" rx="2" fill="#d97706"/></g></g><animateMotion dur="2.6s" begin="-0.6000000000000001s" repeatCount="indefinite" path="M479.3 60.2 L339.3 142.7" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.6s" begin="-0.6000000000000001s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g><g class="flow" opacity="0"><g transform="scale(0.3444623173046678)"><g class="glyph "><rect x="-23" y="12" width="12" height="8" rx="2" fill="#7c3aed"/><rect x="-6" y="0" width="12" height="20" rx="2" fill="#7c3aed"/><rect x="11" y="-16" width="12" height="36" rx="2" fill="#7c3aed"/></g></g><animateMotion dur="2.6s" begin="-0.8s" repeatCount="indefinite" path="M140.7 259.8 L280.7 177.3" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.6s" begin="-0.8s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g><g class="flow" opacity="0"><g transform="scale(0.48030358765972636)"><g class="glyph "><rect x="-23" y="-8" width="12" height="28" rx="2" fill="#0891b2"/><rect x="-6" y="4" width="12" height="16" rx="2" fill="#0891b2"/><rect x="11" y="12" width="12" height="8" rx="2" fill="#0891b2"/></g></g><animateMotion dur="2.6s" begin="-1.0s" repeatCount="indefinite" path="M479.3 259.8 L339.3 177.3" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"/><animate attributeName="opacity" dur="2.6s" begin="-1.0s" repeatCount="indefinite" values="0;1;1;0" keyTimes="0;.12;.82;1"/></g><path d="M344 160 L610 160" stroke="#db2777" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#mkP)"/><text x="477" y="146" font-size="18" font-weight="700" fill="#db2777" text-anchor="middle">Σ α · Wh, then σ</text><g class="glyph pop"><rect x="640" y="160.8" width="12" height="19.2" rx="2" fill="#db2777"/><rect x="657" y="152.4" width="12" height="27.6" rx="2" fill="#db2777"/><rect x="674" y="159.2" width="12" height="20.8" rx="2" fill="#db2777"/><path d="M636 183 H690" stroke="#cbd5e1" stroke-width="2"/></g><text x="663" y="214" font-size="18" font-weight="700" fill="#db2777" text-anchor="middle">new h<tspan dy="5" font-size="13">i</tspan></text></g>
+</svg>
+  </div>
+
+  <!-- Formula, the active part is highlighted -->
+  <div class="formula-bar">
+    <div class="feq feq-1"><span class="feq-n">1</span><math aria-label="e i j equals LeakyReLU of a transpose times the concatenation of W h i and W h j"><msub><mi>e</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mi mathvariant="normal">LeakyReLU</mi><mo stretchy="false">(</mo><msup><mi>a</mi><mi mathvariant="normal">⊤</mi></msup><mo stretchy="false">[</mo><mi>W</mi><msub><mi>h</mi><mi>i</mi></msub><mo stretchy="false">‖</mo><mi>W</mi><msub><mi>h</mi><mi>j</mi></msub><mo stretchy="false">]</mo><mo stretchy="false">)</mo></math></div>
+    <div class="feq feq-2"><span class="feq-n">2</span><math aria-label="alpha i j equals softmax over j of e i j"><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><msub><mi mathvariant="normal">softmax</mi><mi>j</mi></msub><mo stretchy="false">(</mo><msub><mi>e</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo></math></div>
+    <div class="feq feq-3"><span class="feq-n">3</span><math aria-label="h i prime equals sigma of the sum over j of alpha i j times W h j"><msubsup><mi>h</mi><mi>i</mi><mo>′</mo></msubsup><mo>=</mo><mi>σ</mi><mo stretchy="false">(</mo><munder><mo>∑</mo><mi>j</mi></munder><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mi>W</mi><msub><mi>h</mi><mi>j</mi></msub><mo stretchy="false">)</mo></math></div>
+  </div>
+
+  <!-- One caption per click -->
+  <div class="caption-wrap">
+    <div class="cap cap-0"><p>GAT lets the network decide <b>which neighbors matter</b> for each node, instead of treating all of them alike. Bars are feature vectors after the shared matrix <em>W</em>.</p></div>
+    <div class="cap cap-1"><p><b>Score.</b> A small learned function compares node <em>i</em> with each neighbor <em>j</em>, using their transformed features, and returns a score <em>e<sub>ij</sub></em>: how relevant is <em>j</em> for <em>i</em>?</p></div>
+    <div class="cap cap-2"><p><b>Normalize.</b> A softmax turns the scores into attention weights <em>α<sub>ij</sub></em>: positive, summing to 1. The most relevant neighbor gets the largest share, and its edge becomes thicker.</p></div>
+    <div class="cap cap-3"><p><b>Weighted sum.</b> Neighbor vectors are scaled by their weights, summed and passed through <em>σ</em>, so the result leans toward the most relevant neighbor. Multi-head attention repeats this with several sets of weights.</p></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var slide = document.querySelector('.arch-slide');
+  if (!slide) return;
+  var opts = window.__SLIDEUI || {};
+  var items = Array.prototype.slice.call(slide.querySelectorAll('[data-step]'));
+  var last = 0;
+  items.forEach(function (el) { last = Math.max(last, Number(el.getAttribute('data-step')) || 0); });
+  if (opts.showAll) slide.setAttribute('data-all', '');          // editor preview / export: everything bright
+  function sync() {
+    var n = 0;
+    if (opts.showAll) n = last;
+    else items.forEach(function (el) {
+      if (el.classList.contains('step-visible')) n = Math.max(n, Number(el.getAttribute('data-step')) || 0);
+    });
+    slide.setAttribute('data-phase', n);
+  }
+  items.forEach(function (el) { new MutationObserver(sync).observe(el, { attributes: true, attributeFilter: ['class'] }); });
+  sync();
+})();
+</script>
+</body>
+</html>

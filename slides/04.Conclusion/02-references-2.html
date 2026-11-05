@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>References – Graph Neural Networks</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .arrow { font-size: 2rem; font-weight: bold; line-height: 1; color: #94a3b8; display: inline-block; }
+    .arrow-right { animation: nudge-x 1.2s ease-in-out infinite; }
+    .arrow-down { animation: nudge-y 1.2s ease-in-out infinite; }
+    @keyframes nudge-x { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+    @keyframes nudge-y { 0%, 100% { transform: translateY(-4px); } 50% { transform: translateY(4px); } }
+  </style>
+</head>
+<body>
+<!-- BUDGET: tier S/M, B = 528px = two reference cards stacked (flex: 1 each, ~256px; content ~125px, centred); full width 1184px, inner width 1120px. Same format as 01-references.html (SNN), blue accent for the GNN part. -->
+
+<div class="slide-layout" style="padding: 32px 48px 60px; justify-content: flex-start;">
+
+  <!-- Header -->
+  <div style="margin-bottom: 20px;">
+    <div class="title" style="font-size: 2.75rem; margin: 0 0 4px 0;">References – Graph Neural Networks</div>
+    <div class="subtitle" style="font-size: 1.5rem; margin: 0;">Introduction and Recent Survey</div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <!-- Reference 1: Introduction (Distill) -->
+    <div class="panel panel-primary" data-step="1" style="flex: 1; padding: 14px 24px; margin: 0; display: flex; align-items: center; gap: 20px; border-left: 6px solid #2563eb;">
+      <div style="flex: none; width: 56px; height: 56px; border-radius: 50%; background: #2563eb; color: #ffffff; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center;">1</div>
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 1.2rem; font-weight: 700; line-height: 1.4; color: #2563eb; margin: 0;">Introduction to Graph Neural Networks</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Sanchez-Lengeling, B., Reif, E., Pearce, A., &amp; Wiltschko, A. B. <strong style="color: #2563eb;">(2021).</strong> <strong>“A Gentle Introduction to Graph Neural Networks.”</strong> <em>Distill</em>, 6(8).</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;"><strong>Contribution:</strong> visual and interactive introduction to GNNs: graphs as data, the building blocks of a GNN, message passing and the node-, edge- and graph-level prediction tasks.</div>
+        <div class="text-muted" style="font-size: 1rem; line-height: 1.4; margin: 0;">Online article: https://distill.pub/2021/gnn-intro/ · DOI: https://doi.org/10.23915/distill.00033</div>
+      </div>
+    </div>
+
+    <!-- Reference 2: Survey (IEEE Access) -->
+    <div class="panel panel-primary" data-step="2" style="flex: 1; padding: 14px 24px; margin: 0; display: flex; align-items: center; gap: 20px; border-left: 6px solid #2563eb;">
+      <div style="flex: none; width: 56px; height: 56px; border-radius: 50%; background: #2563eb; color: #ffffff; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center;">2</div>
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 1.2rem; font-weight: 700; line-height: 1.4; color: #2563eb; margin: 0;">Recent Progress and Open Challenges</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;">Zhang, X., Li, S., Li, H., Gong, P., Shi, J., Shen, J., Tian, C., Zhang, D., &amp; Zhu, Q. <strong style="color: #2563eb;">(2026).</strong> <strong>“A Survey on Graph Neural Networks.”</strong> <em>IEEE Access</em>, 14, 27491–27512.</div>
+        <div style="font-size: 1.05rem; line-height: 1.4; margin: 0;"><strong>Contribution:</strong> systematic review of GNN progress since 2022 (architectures, optimization strategies, applications) and of open challenges such as scalability and dynamic graphs.</div>
+        <div class="text-muted" style="font-size: 1rem; line-height: 1.4; margin: 0;">DOI: https://doi.org/10.1109/ACCESS.2026.3665657</div>
+        <div class="text-muted" style="font-size: 1rem; line-height: 1.4; margin: 0;">PDF: https://ieeexplore.ieee.org/iel8/6287639/11323511/11397632.pdf</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

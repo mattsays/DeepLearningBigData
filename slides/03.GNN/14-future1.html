@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Future Directions: The Next Era of GNNs</title>
+  <link rel="stylesheet" href="slideui.css">
+  <script src="slideui.js" defer></script>
+  <style>
+    .future { padding: 28px 48px 40px; justify-content: flex-start; }
+    .future .title { font-size: 2.65rem; margin: 0 0 4px; }
+    .future .subtitle { font-size: 1.38rem; margin: 0 0 14px; }
+    .cards { flex: 1; min-height: 0; display: flex; gap: 16px; }
+    .fcard { flex: 1; min-width: 0; margin: 0; padding: 16px 18px 18px; display: flex; flex-direction: column; justify-content: center;
+      border-radius: 16px; transition: opacity .5s ease, transform .6s cubic-bezier(.22,.61,.36,1), visibility .5s; }
+    .fcard.step-hidden { transform: translateY(16px); }
+    .fcard-blue { background: #eff6ff; border: 1px solid #bfdbfe; --acc: #2563eb; }
+    .fcard-violet { background: #f5f3ff; border: 1px solid #ddd6fe; --acc: #7c3aed; }
+    .fcard-green { background: #ecfdf5; border: 1px solid #a7f3d0; --acc: #059669; }
+    .fhead { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; }
+    .fnum { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--acc); color: #fff; font-size: 20px;
+      font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .ftitle { font-size: 1.12rem; white-space: nowrap; font-weight: 800; line-height: 1.15; color: var(--acc); }
+    .fstage { flex: none; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+    .fstage svg { display: block; width: 100%; height: auto; }
+    .fcard p { margin: 14px 0 0; font-size: 1.2rem; line-height: 1.38; color: #1e293b; }
+    .fcard p b { color: var(--acc); }
+
+    /* synthesis strip */
+    .synth { flex: none; margin-top: 14px; height: 84px; display: flex; align-items: center; justify-content: center; gap: 14px;
+      background: linear-gradient(90deg, #eff6ff, #f5f3ff 50%, #ecfdf5); border: 1px solid #e2e8f0; border-radius: 16px; padding: 0 22px; }
+    .chip { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 16px; background: #fff;
+      border: 2px solid var(--acc); border-radius: 12px; line-height: 1.2; }
+    .chip b { font-size: 1.15rem; color: var(--acc); }
+    .chip span { font-size: 1rem; color: #475569; font-weight: 600; }
+    .chip-blue { --acc: #2563eb; } .chip-violet { --acc: #7c3aed; } .chip-green { --acc: #059669; }
+    .op { font-size: 2rem; font-weight: 800; color: #94a3b8; line-height: 1; }
+    .impl { font-size: 2.3rem; font-weight: 800; color: #4f46e5; line-height: 1; display: inline-block; animation: nudge 1.4s ease-in-out infinite; }
+    @keyframes nudge { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(5px); } }
+    .result { padding: 12px 22px; border-radius: 14px; color: #fff; font-size: 1.5rem; font-weight: 800; white-space: nowrap;
+      background: linear-gradient(100deg, #2563eb, #7c3aed, #059669, #2563eb); background-size: 300% 100%;
+      animation: shimmer 6s linear infinite; box-shadow: 0 6px 18px rgba(79, 70, 229, .35); }
+    @keyframes shimmer { to { background-position: 300% 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .flow { display: none; }
+      .impl, .result { animation: none; }
+      .fcard { transition: none; }
+    }
+  </style>
+</head>
+<body>
+<!-- Source: papers/GNN.typ. Three future directions, one animated diagram each (SMIL, no script), then the synthesis.
+     Click 1-3: one direction per click. Click 4: the three ideas converge into Next-Gen Graph AI. -->
+<div class="slide-layout future">
+
+  <!-- Header -->
+  <div>
+    <div class="title">Future Directions: The Next Era of GNNs</div>
+    <div class="subtitle">Moving beyond isolated silos: foundation models, topological hypergraphs and real-time streaming</div>
+  </div>
+
+  <!-- The three directions -->
+  <div class="cards">
+
+    <div class="panel fcard fcard-blue" data-step="1">
+      <div class="fhead"><span class="fnum">1</span><span class="ftitle">Graph Foundation Models</span></div>
+      <div class="fstage">
+<svg viewBox="0 0 344 250" role="img" aria-label="Three source graphs (social, biological, financial) are used to pre-train one graph foundation model, which then transfers zero-shot to a graph it has never seen.">
+<title>Graph foundation model: pre-train on many graphs, transfer zero-shot</title>
+<defs><marker id="fa" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0 1L11 6L0 11z" fill="#2563eb"/></marker><marker id="fam" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M0 1L11 6L0 11z" fill="#d97706"/></marker><linearGradient id="gfmg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#1d4ed8"/></linearGradient></defs>
+<rect x="8" y="19" width="74" height="58" rx="12" fill="#fff" stroke="#db2777" stroke-width="2.5"/>
+<rect x="8" y="96" width="74" height="58" rx="12" fill="#fff" stroke="#059669" stroke-width="2.5"/>
+<rect x="8" y="173" width="74" height="58" rx="12" fill="#fff" stroke="#d97706" stroke-width="2.5"/>
+<path d="M25 38 L45 31" stroke="#db2777" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M45 31 L65 40" stroke="#db2777" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M25 38 L36 58" stroke="#db2777" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M45 31 L36 58" stroke="#db2777" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M65 40 L58 61" stroke="#db2777" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M36 58 L58 61" stroke="#db2777" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<circle cx="25" cy="38" r="5.5" fill="#db2777"/>
+<circle cx="45" cy="31" r="5.5" fill="#db2777"/>
+<circle cx="65" cy="40" r="5.5" fill="#db2777"/>
+<circle cx="36" cy="58" r="5.5" fill="#db2777"/>
+<circle cx="58" cy="61" r="5.5" fill="#db2777"/>
+<path d="M61.5 115.5 L61.5 134.5" stroke="#059669" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M61.5 134.5 L45 144" stroke="#059669" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M45 144 L28.5 134.5" stroke="#059669" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M28.5 134.5 L28.5 115.5" stroke="#059669" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M28.5 115.5 L45 106" stroke="#059669" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M45 106 L61.5 115.5" stroke="#059669" stroke-width="2.5" stroke-linecap="round" fill="none" />
+<path d="M56.8 120.2 L56.8 129.8" stroke="#059669" stroke-width="2" stroke-linecap="round" fill="none" />
+<path d="M43.2 137.6 L35 132.9" stroke="#059669" stroke-width="2" stroke-linecap="round" fill="none" />
+<path d="M35 117.1 L43.2 112.4" stroke="#059669" stroke-width="2" stroke-linecap="round" fill="none" />
+<circle cx="61.5" cy="115.5" r="5" fill="#059669"/>
+<circle cx="61.5" cy="134.5" r="5" fill="#059669"/>
+<circle cx="45" cy="144" r="5" fill="#059669"/>
+<circle cx="28.5" cy="134.5" r="5" fill="#059669"/>
+<circle cx="28.5" cy="115.5" r="5" fill="#059669"/>
+<circle cx="45" cy="106" r="5" fill="#059669"/>
+<path d="M34 188 L51 188" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#fam)"/>
+<path d="M62 194 L62 205" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#fam)"/>
+<path d="M56 216 L39 216" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#fam)"/>
+<path d="M28 210 L28 199" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#fam)"/>
+<path d="M32.6 191.8 L53.5 209" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#fam)"/>
+<circle cx="28" cy="188" r="5.5" fill="#d97706"/>
+<circle cx="62" cy="188" r="5.5" fill="#d97706"/>
+<circle cx="62" cy="216" r="5.5" fill="#d97706"/>
+<circle cx="28" cy="216" r="5.5" fill="#d97706"/>
+<text x="45" y="13" font-size="16" font-weight="700" fill="#475569" text-anchor="middle" >pre-train</text>
+<path d="M82 48 C112 48 114 125 146 125" stroke="#cbd5e1" stroke-width="3" fill="none" stroke-dasharray="2 6" stroke-linecap="round"/>
+<path d="M82 125 L146 125" stroke="#cbd5e1" stroke-width="3" fill="none" stroke-dasharray="2 6" stroke-linecap="round"/>
+<path d="M82 202 C112 202 114 125 146 125" stroke="#cbd5e1" stroke-width="3" fill="none" stroke-dasharray="2 6" stroke-linecap="round"/>
+<circle cx="176" cy="125" r="30" fill="#2563eb" opacity="0"><animate attributeName="r" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="30;30;34;58;58" keyTimes="0;0.3;0.34;0.52;1" /><animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;0;0.5;0;0" keyTimes="0;0.3;0.34;0.52;1" /></circle>
+<rect x="146" y="95" width="60" height="60" rx="16" fill="url(#gfmg)"/>
+<text x="176" y="132" font-size="21" font-weight="800" fill="#fff" text-anchor="middle" >GFM</text>
+<path d="M210 125 L234 125" stroke="#2563eb" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#fa)"/>
+<text x="283" y="62" font-size="16" font-weight="700" fill="#2563eb" text-anchor="middle" >zero-shot</text>
+<rect x="240" y="72" width="86" height="106" rx="14" fill="#fff" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="6 5"/>
+<path d="M264 98 L283 125" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" fill="none" />
+<path d="M304 94 L283 125" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" fill="none" />
+<path d="M283 125 L262 154" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" fill="none" />
+<path d="M283 125 L306 152" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" fill="none" />
+<path d="M262 154 L306 152" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" fill="none" />
+<circle cx="264" cy="98" r="7" fill="#fff" stroke="#94a3b8" stroke-width="2.5"/>
+<circle cx="304" cy="94" r="7" fill="#fff" stroke="#94a3b8" stroke-width="2.5"/>
+<circle cx="262" cy="154" r="7" fill="#fff" stroke="#94a3b8" stroke-width="2.5"/>
+<circle cx="306" cy="152" r="7" fill="#fff" stroke="#94a3b8" stroke-width="2.5"/>
+<circle cx="283" cy="125" r="8" fill="#fff" stroke="#94a3b8" stroke-width="2.5"/>
+<circle cx="283" cy="125" r="8" fill="#059669" opacity="0"><animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;0;1;1;0" keyTimes="0;0.62;0.68;0.92;1" /></circle>
+<circle cx="283" cy="125" r="8" fill="none" stroke="#059669" stroke-width="3" opacity="0"><animate attributeName="r" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="8;8;26;26" keyTimes="0;0.64;0.86;1" /><animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;0.8;0;0" keyTimes="0;0.64;0.86;1" /></circle>
+<text x="283" y="200" font-size="16" font-weight="700" fill="#475569" text-anchor="middle" >unseen graph</text>
+<circle class="flow" r="6" fill="#db2777" stroke="#fff" stroke-width="2" opacity="0"><animateMotion dur="4.2s" begin="0.0s" repeatCount="indefinite" path="M82 48 C112 48 114 125 146 125" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.3;1"/><animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.04;0.27;0.31;1" /></circle>
+<circle class="flow" r="6" fill="#059669" stroke="#fff" stroke-width="2" opacity="0"><animateMotion dur="4.2s" begin="0.12s" repeatCount="indefinite" path="M82 125 L146 125" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.3;1"/><animate attributeName="opacity" dur="4.2s" begin="0.12s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.04;0.27;0.31;1" /></circle>
+<circle class="flow" r="6" fill="#d97706" stroke="#fff" stroke-width="2" opacity="0"><animateMotion dur="4.2s" begin="0.24s" repeatCount="indefinite" path="M82 202 C112 202 114 125 146 125" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.3;1"/><animate attributeName="opacity" dur="4.2s" begin="0.24s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.04;0.27;0.31;1" /></circle>
+<circle class="flow" r="6" fill="#2563eb" stroke="#fff" stroke-width="2" opacity="0"><animateMotion dur="4.2s" begin="0.0s" repeatCount="indefinite" path="M210 125 L234 125" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.5;0.62;1"/><animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.5;0.52;0.6;0.63;1" /></circle>
+</svg>
+      </div>
+      <p>Pre-train once on social, biological and financial graphs, then transfer <b>zero-shot</b> to unseen ones.</p>
+    </div>
+
+    <div class="panel fcard fcard-violet" data-step="2">
+      <div class="fhead"><span class="fnum">2</span><span class="ftitle">Topological Deep Learning</span></div>
+      <div class="fstage">
+<svg viewBox="0 0 344 250" role="img" aria-label="A ring of eight nodes. Message passing along pairwise edges needs four hops to go from S to T; a hyperedge linking four nodes gets there in one step.">
+<title>Hyperedges as information highways</title>
+<polygon points="172,41 284,125 172,209 60,125" fill="#7c3aed" fill-opacity=".10" stroke="#7c3aed" stroke-width="3" stroke-dasharray="8 6" stroke-linejoin="round"/>
+<path d="M172 41 L251 66" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round" fill="none" />
+<path d="M251 66 L284 125" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round" fill="none" />
+<path d="M284 125 L251 184" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round" fill="none" />
+<path d="M251 184 L172 209" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round" fill="none" />
+<path d="M172 209 L93 184" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round" fill="none" />
+<path d="M93 184 L60 125" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round" fill="none" />
+<path d="M60 125 L93 66" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round" fill="none" />
+<path d="M93 66 L172 41" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round" fill="none" />
+<path d="M172 125 L172 41" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".55"/>
+<path d="M172 125 L284 125" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".55"/>
+<path d="M172 125 L172 209" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".55"/>
+<path d="M172 125 L60 125" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".55"/>
+<rect x="162" y="115" width="20" height="20" rx="5" fill="#7c3aed"/>
+<rect x="12" y="11" width="14" height="14" rx="4" fill="#7c3aed"/>
+<text x="33" y="24" font-size="16" font-weight="700" fill="#7c3aed" text-anchor="start" >hyperedge</text>
+<circle cx="251" cy="66" r="9" fill="#fff" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="284" cy="125" r="9" fill="#fff" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="251" cy="184" r="9" fill="#fff" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="93" cy="184" r="9" fill="#fff" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="60" cy="125" r="9" fill="#fff" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="93" cy="66" r="9" fill="#fff" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="172" cy="41" r="13" fill="#7c3aed"/>
+<text x="172" y="47" font-size="17" font-weight="800" fill="#fff" text-anchor="middle" >S</text>
+<circle cx="172" cy="209" r="13" fill="#7c3aed"/>
+<text x="172" y="215" font-size="17" font-weight="800" fill="#fff" text-anchor="middle" >T</text>
+<circle cx="172" cy="209" r="13" fill="none" stroke="#7c3aed" stroke-width="3" opacity="0"><animate attributeName="r" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="13;13;32;32" keyTimes="0;0.14;0.4;1" /><animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;0.85;0;0" keyTimes="0;0.14;0.4;1" /></circle>
+<circle cx="172" cy="209" r="13" fill="none" stroke="#64748b" stroke-width="3" opacity="0"><animate attributeName="r" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="13;13;13;32;32" keyTimes="0;0.55;0.56;0.74;1" /><animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;0;0.85;0;0" keyTimes="0;0.55;0.56;0.74;1" /></circle>
+<circle class="flow" r="7" fill="#475569" stroke="#fff" stroke-width="2" opacity="0"><animateMotion dur="4.2s" begin="0.0s" repeatCount="indefinite" path="M172 41 L251 66 L284 125 L251 184 L172 209" calcMode="linear" keyPoints="0;0.275354;0.275354;0.5;0.5;0.724646;0.724646;1;1" keyTimes="0;0.1;0.15;0.25;0.3;0.4;0.45;0.55;1"/><animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.02;0.54;0.58;1" /></circle>
+<circle class="flow" r="8" fill="#7c3aed" stroke="#fff" stroke-width="2" opacity="0"><animateMotion dur="4.2s" begin="0.0s" repeatCount="indefinite" path="M172 41 L172 209" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.14;1"/><animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.02;0.13;0.17;1" /></circle>
+<text x="160" y="244" font-size="17" font-weight="800" fill="#7c3aed" text-anchor="end" opacity="0">1 step<animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;0;1;1;0" keyTimes="0;0.14;0.18;0.92;1" /></text>
+<text x="184" y="244" font-size="17" font-weight="800" fill="#475569" text-anchor="start" opacity="0">4 hops<animate attributeName="opacity" dur="4.2s" begin="0.0s" repeatCount="indefinite" values="0;0;1;1;0" keyTimes="0;0.55;0.59;0.92;1" /></text>
+</svg>
+      </div>
+      <p>Hyperedges link whole groups of nodes at once: <b>information highways</b> that ease over-squashing.</p>
+    </div>
+
+    <div class="panel fcard fcard-green" data-step="3">
+      <div class="fhead"><span class="fnum">3</span><span class="ftitle">Streaming Continual Learning</span></div>
+      <div class="fstage">
+<svg viewBox="0 0 344 250" role="img" aria-label="A graph that keeps changing: when a new node arrives, only the nodes around it are updated, the rest of the graph stays untouched.">
+<title>Streaming graph: local updates only</title>
+<path d="M62 92 L122 52" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M62 92 L128 128" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M122 52 L128 128" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M62 92 L70 176" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M128 128 L70 176" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M128 128 L196 96" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M128 128 L186 176" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M196 96 L186 176" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M196 96 L250 140" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M186 176 L250 140" stroke="#a7f3d0" stroke-width="3.5" stroke-linecap="round" fill="none" />
+<path d="M262 62 L196 96" stroke="#059669" stroke-width="3.5" stroke-linecap="round" fill="none" stroke-dasharray="74.2" stroke-dashoffset="74.2" opacity="0"><animate attributeName="stroke-dashoffset" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="74.2;74.2;0;0" keyTimes="0;0.14;0.21;1" /><animate attributeName="opacity" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.14;0.48;0.54;1" /></path>
+<path d="M262 62 L250 140" stroke="#059669" stroke-width="3.5" stroke-linecap="round" fill="none" stroke-dasharray="78.9" stroke-dashoffset="78.9" opacity="0"><animate attributeName="stroke-dashoffset" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="78.9;78.9;0;0" keyTimes="0;0.14;0.21;1" /><animate attributeName="opacity" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.14;0.48;0.54;1" /></path>
+<circle cx="262" cy="62" r="0" fill="#059669" stroke="#fff" stroke-width="3"><animate attributeName="r" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="0;0;11;11;0;0" keyTimes="0;0.1;0.15;0.48;0.54;1" /></circle>
+<circle cx="262" cy="62" r="12" fill="none" stroke="#059669" stroke-width="3" stroke-dasharray="7 6" opacity="0"><animate attributeName="r" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="12;12;88;88" keyTimes="0;0.15;0.32;1" /><animate attributeName="opacity" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="0;0.8;0;0" keyTimes="0;0.15;0.32;1" /></circle>
+<path d="M240 212 L186 176" stroke="#059669" stroke-width="3.5" stroke-linecap="round" fill="none" stroke-dasharray="64.9" stroke-dashoffset="64.9" opacity="0"><animate attributeName="stroke-dashoffset" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="64.9;64.9;0;0" keyTimes="0;0.56;0.63;1" /><animate attributeName="opacity" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.56;0.9;0.96;1" /></path>
+<path d="M240 212 L250 140" stroke="#059669" stroke-width="3.5" stroke-linecap="round" fill="none" stroke-dasharray="72.7" stroke-dashoffset="72.7" opacity="0"><animate attributeName="stroke-dashoffset" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="72.7;72.7;0;0" keyTimes="0;0.56;0.63;1" /><animate attributeName="opacity" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.56;0.9;0.96;1" /></path>
+<circle cx="240" cy="212" r="0" fill="#059669" stroke="#fff" stroke-width="3"><animate attributeName="r" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="0;0;11;11;0;0" keyTimes="0;0.52;0.57;0.9;0.96;1" /></circle>
+<circle cx="240" cy="212" r="12" fill="none" stroke="#059669" stroke-width="3" stroke-dasharray="7 6" opacity="0"><animate attributeName="r" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="12;12;88;88" keyTimes="0;0.57;0.74;1" /><animate attributeName="opacity" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="0;0.8;0;0" keyTimes="0;0.57;0.74;1" /></circle>
+<circle cx="62" cy="92" r="10" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+<circle cx="122" cy="52" r="10" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+<circle cx="128" cy="128" r="10" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+<circle cx="70" cy="176" r="10" fill="#d1fae5" stroke="#059669" stroke-width="3"/>
+<circle cx="196" cy="96" r="10" fill="#d1fae5" stroke="#059669" stroke-width="3"><animate attributeName="fill" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="#d1fae5;#d1fae5;#059669;#059669;#d1fae5;#d1fae5" keyTimes="0;0.22;0.27;0.46;0.52;1" /></circle>
+<circle cx="186" cy="176" r="10" fill="#d1fae5" stroke="#059669" stroke-width="3"><animate attributeName="fill" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="#d1fae5;#d1fae5;#059669;#059669;#d1fae5;#d1fae5" keyTimes="0;0.64;0.69;0.88;0.94;1" /></circle>
+<circle cx="250" cy="140" r="10" fill="#d1fae5" stroke="#059669" stroke-width="3"><animate attributeName="fill" dur="5.0s" begin="0.0s" repeatCount="indefinite" values="#d1fae5;#d1fae5;#059669;#059669;#d1fae5;#d1fae5;#059669;#059669;#d1fae5;#d1fae5" keyTimes="0;0.22;0.27;0.46;0.52;0.64;0.69;0.88;0.94;1" /></circle>
+<circle cx="18" cy="20" r="6" fill="#059669"><animate attributeName="opacity" dur="1.0s" begin="0.0s" repeatCount="indefinite" values="1;0.25;1" keyTimes="0;0.5;1" /></circle>
+<text x="32" y="26" font-size="18" font-weight="800" fill="#059669" text-anchor="start" >Δt = 1 ms</text>
+<circle cx="18" cy="236" r="8" fill="#059669"/>
+<text x="32" y="242" font-size="16" font-weight="700" fill="#475569" text-anchor="start" >updated</text>
+<circle cx="128" cy="236" r="8" fill="#d1fae5" stroke="#059669" stroke-width="2.5"/>
+<text x="142" y="242" font-size="16" font-weight="700" fill="#475569" text-anchor="start" >untouched</text>
+</svg>
+      </div>
+      <p>Update only the weights near each change, in real time: no full recomputation, no <b>forgetting</b>.</p>
+    </div>
+  </div>
+
+  <!-- Synthesis -->
+  <div class="synth" data-step="4">
+    <div class="chip chip-blue"><b>GFMs</b><span>Universal transfer</span></div>
+    <span class="op">+</span>
+    <div class="chip chip-violet"><b>Hypergraphs</b><span>Topological expressivity</span></div>
+    <span class="op">+</span>
+    <div class="chip chip-green"><b>Continual streaming</b><span>Dynamic efficiency</span></div>
+    <span class="impl">&rArr;</span>
+    <div class="result">Next-Gen Graph AI</div>
+  </div>
+</div>
+
+</body>
+</html>
